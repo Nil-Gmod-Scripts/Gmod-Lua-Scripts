@@ -10,17 +10,14 @@ if CLIENT then
 	end
 
 	local function DrawNameTag(ent, name, color)
-
 		local eyePos = ent:EyePos()
 		local tagPos = eyePos + Vector(0, 0, 10)
 		local screenPos = tagPos:ToScreen()
-
 		draw.SimpleText(name, "Trebuchet24", screenPos.x, screenPos.y, color, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 	end
 
 	local function DrawCursorLines(entities, color, filter)
 		local cursorPos = LocalPlayer():GetEyeTrace().HitPos
-
 		for _, ent in ipairs(entities) do
 			if not filter or filter(ent) then
 				render.DrawLine(cursorPos, ent:EyePos(), color, true)
@@ -38,7 +35,6 @@ if CLIENT then
 					DrawBoundingBox(ent, Color(255, 0, 0), Angle(0, 0, 0))
 				end
 			end
-
 			if settings.playerbox then
 				for _, ply in ipairs(player.GetAll()) do
 					if ply ~= LocalPlayer() and ply:Alive() then
@@ -83,7 +79,6 @@ if CLIENT then
 				end
 			end
 		end
-
 		if settings.playernametags then
 			for _, ply in ipairs(player.GetAll()) do
 				if ply:Alive() and IsValid(ply) then
