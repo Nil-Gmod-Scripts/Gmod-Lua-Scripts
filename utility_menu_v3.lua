@@ -20,7 +20,7 @@ if CLIENT then
 
 	local function DrawCursorLines(entities, color, filter)
 		local cursorPos = LocalPlayer():GetEyeTrace().HitPos
-		
+
 		for _, ent in ipairs(entities) do
 			if not filter or filter(ent) then
 				render.DrawLine(cursorPos, ent:EyePos(), color, true)
