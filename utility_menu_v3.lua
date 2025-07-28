@@ -1,5 +1,6 @@
 if CLIENT then
 	local settings = {autobhop = false, speedometer = false, propbox = false, npcbox = false, playerbox = false, npcnametags = false, playernametags = false, npccursorlines = false, playercursorlines = false}
+	local actList = {"dance", "robot", "muscle", "zombie", "agree", "disagree", "cheer", "wave", "laugh", "forward", "group", "halt", "salute", "becon", "bow"}
 
 	for k in pairs(settings) do settings[k] = cookie.GetNumber("utility_" .. k, 0) == 1 end
 
@@ -81,7 +82,7 @@ if CLIENT then
 		end
 		if settings.playernametags then
 			for _, ply in ipairs(player.GetAll()) do
-				if ply:Alive() and IsValid(ply) then
+				if ply ~= LocalPlayer() and ply:Alive() and IsValid(ply) then
 					DrawNameTag(ply, ply:Nick(), Color(255, 255, 0))
 				end
 			end
@@ -117,7 +118,7 @@ if CLIENT then
 
 	local function CreateUtilityMenu()
 		utilityMenu = vgui.Create("DFrame")
-		utilityMenu:SetSize(290, 400)
+		utilityMenu:SetSize(300, 400)
 		utilityMenu:Center()
 		utilityMenu:SetTitle("Utility Menu")
 		utilityMenu:SetVisible(false)
@@ -156,8 +157,38 @@ if CLIENT then
 		createCheckbox(scrollDisplay, "Player Nametags", "playernametags")
 		createCheckbox(scrollDisplay, "Player Cursor Lines", "playercursorlines")
 
-		tabs:AddSheet(" Utility", utilityPanel, "icon16/user.png")
+		local actPanel = vgui.Create("DPanel")
+		actPanel:Dock(FILL)
+		actPanel.Paint = nil
+
+		local scrollAct = vgui.Create("DScrollPanel", actPanel)
+		scrollAct:Dock(FILL)
+
+		createLabel(scrollAct, "Player Gestures")
+
+		local grid = vgui.Create("DIconLayout", scrollAct)
+		grid:Dock(TOP)
+		grid:SetSpaceX(5)
+		grid:SetSpaceY(5)
+		grid:DockMargin(10, 0, 10, 0)
+
+		local buttonWidth = (scrollAct:GetWide() - (5 * 4) - 20) / 5
+		local buttonHeight = 30
+
+		buttonWidth = 50
+
+		for _, act in ipairs(actList) do
+			local btn = grid:Add("DButton")
+			btn:SetText(act:sub(1,1):upper() .. act:sub(2))
+			btn:SetSize(buttonWidth, buttonHeight)
+			btn.DoClick = function()
+				RunConsoleCommand("act", act)
+			end
+		end
+
+		tabs:AddSheet(" Utility", utilityPanel, "icon16/wrench.png")
 		tabs:AddSheet(" Display", displayPanel, "icon16/eye.png")
+		tabs:AddSheet(" Act", actPanel, "icon16/user.png")
 	end
 
 	concommand.Add("open_utility_menu", function()
