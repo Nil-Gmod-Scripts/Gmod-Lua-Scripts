@@ -57,7 +57,7 @@ if CLIENT then
 
 	hook.Add("CreateMove", "CustomMovementControls", function(cmd)
 		local ply = LocalPlayer()
-		if ply:Alive() and settings.autobhop and ply:GetMoveType() ~= MOVETYPE_NOCLIP then
+		if ply:Alive() and settings.autobhop and ply:GetMoveType() ~= MOVETYPE_NOCLIP and ply:WaterLevel() < 2 then
 			if not ply:IsOnGround() and cmd:KeyDown(IN_JUMP) then
 				cmd:RemoveKey(IN_JUMP)
 			end
