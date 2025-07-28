@@ -191,5 +191,5 @@ if CLIENT then
 	concommand.Add("open_utility_menu", function()
 		if not IsValid(utilityMenu) then CreateUtilityMenu() end
 		utilityMenu:SetVisible(true) utilityMenu:MakePopup()
-	end)
+	end) --
 end
