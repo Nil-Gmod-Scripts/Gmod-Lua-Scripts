@@ -14,7 +14,7 @@ if CLIENT then
 		local eyePos = ent:EyePos()
 		local tagPos = eyePos + Vector(0, 0, 10)
 		local screenPos = tagPos:ToScreen()
-		draw.SimpleText(name, "Trebuchet24", screenPos.x, screenPos.y, color, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+		draw.SimpleText(name, "BudgetLabel", screenPos.x, screenPos.y, color, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 	end
 
 	local function DrawCursorLines(entities, color, filter)
@@ -67,7 +67,7 @@ if CLIENT then
 	hook.Add("HUDPaint", "ShowPlayerSpeed", function()
 		local ply = LocalPlayer()
 		if IsValid(ply) and ply:Alive() and settings.speedometer then
-			draw.SimpleText(("Speed: %d u/s"):format(math.Round(ply:GetVelocity():Length())), "Trebuchet24", 600, 400, Color(255, 255, 0), TEXT_ALIGN_LEFT)
+			draw.SimpleText(("Speed: %d u/s"):format(math.Round(ply:GetVelocity():Length())), "BudgetLabel", 600, 450, Color(255, 255, 0), TEXT_ALIGN_LEFT)
 		end
 	end)
 
