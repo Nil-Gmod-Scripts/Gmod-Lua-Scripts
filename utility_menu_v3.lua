@@ -160,12 +160,10 @@ if CLIENT then
 		local actPanel = vgui.Create("DPanel")
 		actPanel:Dock(FILL)
 		actPanel.Paint = nil
-
 		local scrollAct = vgui.Create("DScrollPanel", actPanel)
 		scrollAct:Dock(FILL)
 
 		createLabel(scrollAct, "Player Gestures")
-
 		local grid = vgui.Create("DIconLayout", scrollAct)
 		grid:Dock(TOP)
 		grid:SetSpaceX(5)
@@ -174,7 +172,6 @@ if CLIENT then
 
 		local buttonWidth = (scrollAct:GetWide() - (5 * 4) - 20) / 5
 		local buttonHeight = 30
-
 		buttonWidth = 50
 
 		for _, act in ipairs(actList) do
