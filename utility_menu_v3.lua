@@ -1,5 +1,5 @@
 if CLIENT then
-	local settings = {autobhop = false, speedometer = false, propbox = false, npcbox = false, playerbox = false, npcnametags = false, playernametags = false, npccursorlines = false, playercursorlines = false}
+	local settings = {autobhop = false, speedometer = false, propbox = false, npcbox = false, playerbox = false, npcnametags = false, playernametags = false, npccursorlines = false, playercursorlines = false, playerbones = false, npcbones = false}
 	local actList = {"dance", "robot", "muscle", "zombie", "agree", "disagree", "cheer", "wave", "laugh", "forward", "group", "halt", "salute", "becon", "bow"}
 
 	for k in pairs(settings) do settings[k] = cookie.GetNumber("utility_" .. k, 0) == 1 end
@@ -22,6 +22,27 @@ if CLIENT then
 		for _, ent in ipairs(entities) do
 			if not filter or filter(ent) then
 				render.DrawLine(cursorPos, ent:EyePos(), color, true)
+			end
+		end
+	end
+
+	local function DrawBoneLines(ent, color)
+		if not ent:IsValid() then return end
+		local boneCount = ent:GetBoneCount()
+		if not boneCount or boneCount <= 0 then return end
+		render.SetColorMaterial()
+		local bonePositions = {}
+		for i = 0, boneCount - 1 do
+			local pos = ent:GetBonePosition(i)
+			if pos then bonePositions[i] = pos end
+		end
+		for i = 0, boneCount - 1 do
+			local parent = ent:GetBoneParent(i)
+			if parent >= 0 and bonePositions[i] and bonePositions[parent] then
+				local dist = bonePositions[i]:Distance(bonePositions[parent])
+				if dist <= 30 then
+					render.DrawLine(bonePositions[i], bonePositions[parent], color, false)
+				end
 			end
 		end
 	end
@@ -49,10 +70,10 @@ if CLIENT then
 	hook.Add("PostDrawTranslucentRenderables", "DrawLinesToEntities", function()
 		local ply = LocalPlayer()
 		if not IsValid(ply) or not ply:Alive() then return end
-			cam.IgnoreZ(true)
-			if settings.npccursorlines then DrawCursorLines(ents.FindByClass("npc_*"), Color(255, 0, 0), function(npc) return npc:Health() > 0 end) end
-			if settings.playercursorlines then DrawCursorLines(player.GetAll(), Color(255,255,0), function(ply) return ply~=LocalPlayer() and ply:Alive() end) end
-			cam.IgnoreZ(false)
+		cam.IgnoreZ(true)
+		if settings.npccursorlines then DrawCursorLines(ents.FindByClass("npc_*"), Color(255, 0, 0), function(npc) return npc:Health() > 0 end) end
+		if settings.playercursorlines then DrawCursorLines(player.GetAll(), Color(255,255,0), function(ply) return ply~=LocalPlayer() and ply:Alive() end) end
+		cam.IgnoreZ(false)
 	end)
 
 	hook.Add("CreateMove", "CustomMovementControls", function(cmd)
@@ -87,6 +108,26 @@ if CLIENT then
 				end
 			end
 		end
+	end)
+
+	hook.Add("PostDrawOpaqueRenderables", "DrawBones", function()
+		if not (settings.playerbones or settings.npcbones) then return end
+		cam.IgnoreZ(true)
+		if settings.playerbones then
+			for _, ply in ipairs(player.GetAll()) do
+				if ply ~= LocalPlayer() and ply:Alive() then
+					DrawBoneLines(ply, Color(255, 255, 0))
+				end
+			end
+		end
+		if settings.npcbones then
+			for _, npc in ipairs(ents.FindByClass("npc_*")) do
+				if npc:IsValid() and npc:Health() > 0 then
+					DrawBoneLines(npc, Color(255, 0, 0))
+				end
+			end
+		end
+		cam.IgnoreZ(false)
 	end)
 
 	local utilityMenu
@@ -149,11 +190,13 @@ if CLIENT then
 
 		createLabel(scrollDisplay, "NPC Options")
 		createCheckbox(scrollDisplay, "NPC Box", "npcbox")
+		createCheckbox(scrollDisplay, "NPC Bones", "npcbones")
 		createCheckbox(scrollDisplay, "NPC Nametags", "npcnametags")
 		createCheckbox(scrollDisplay, "NPC Cursor Lines", "npccursorlines")
 
 		createLabel(scrollDisplay, "Player Options")
 		createCheckbox(scrollDisplay, "Player Box", "playerbox")
+		createCheckbox(scrollDisplay, "Player Bones", "playerbones")
 		createCheckbox(scrollDisplay, "Player Nametags", "playernametags")
 		createCheckbox(scrollDisplay, "Player Cursor Lines", "playercursorlines")
 
@@ -184,7 +227,7 @@ if CLIENT then
 		end
 
 		tabs:AddSheet(" Utility", utilityPanel, "icon16/wrench.png")
-		tabs:AddSheet(" Display", displayPanel, "icon16/eye.png")
+		tabs:AddSheet(" Display", displayPanel, "icon16/monitor.png")
 		tabs:AddSheet(" Act", actPanel, "icon16/user.png")
 	end
 
