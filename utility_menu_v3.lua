@@ -20,10 +20,14 @@ if CLIENT then
 	end
 
 	function util.DrawCursorLines(entities, color, filter)
-		local cursorPos = LocalPlayer():GetEyeTrace().HitPos
+		local ply = LocalPlayer()
+		local screenX = ScrW() / 2
+		local screenY = ScrH() / 2
+		local dir = gui.ScreenToVector(screenX, screenY)
+		local startPos = ply:EyePos() + dir * 50
 		for _, ent in ipairs(entities) do
 			if not filter or filter(ent) then
-				render.DrawLine(cursorPos, ent:EyePos(), color, true)
+				render.DrawLine(startPos, ent:EyePos(), color, true)
 			end
 		end
 	end
@@ -40,7 +44,9 @@ if CLIENT then
 			local parent = ent:GetBoneParent(i)
 			local pos, parentPos = positions[i], positions[parent]
 			if pos and parentPos and pos:Distance(origin) > 1 and parentPos:Distance(origin) > 1 then
+				cam.IgnoreZ(true)
 				render.DrawLine(pos, parentPos, color, true)
+				cam.IgnoreZ(false)
 			end
 		end
 	end
@@ -71,7 +77,6 @@ if CLIENT then
 
 	hook.Add("PostDrawOpaqueRenderables", "DrawBones", function()
 		if not (settings.playerbones or settings.npcbones) then return end
-		cam.IgnoreZ(true)
 		if settings.npcbones then
 			for _, npc in ipairs(ents.FindByClass("npc_*")) do
 				if IsValid(npc) and npc:Health() > 0 then
@@ -86,7 +91,6 @@ if CLIENT then
 				end
 			end
 		end
-		cam.IgnoreZ(false)
 	end)
 
 	hook.Add("PostDrawTranslucentRenderables", "DrawLinesToEntities", function()
