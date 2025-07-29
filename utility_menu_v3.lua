@@ -1,5 +1,6 @@
 if CLIENT then
-	local settings = {autobhop = false, speedometer = false, propbox = false, npcbox = false, playerbox = false, npcnametags = false, playernametags = false, npccursorlines = false, playercursorlines = false, playerbones = false, npcbones = false}
+	local settings = {autobhop = false, speedometer = false, propbox = false, npcbox = false, playerbox = false, npcnametags = false, playernametags = false, npccursorlines = false, playercursorlines = false, playerbones = false, npcbones = false,}
+
 	local actList = {"dance", "robot", "muscle", "zombie", "agree", "disagree", "cheer", "wave", "laugh", "forward", "group", "halt", "salute", "becon", "bow"}
 
 	for k in pairs(settings) do settings[k] = cookie.GetNumber("utility_" .. k, 0) == 1 end
@@ -11,8 +12,7 @@ if CLIENT then
 	end
 
 	local function DrawNameTag(ent, name, color)
-		local eyePos = ent:EyePos()
-		local tagPos = eyePos + Vector(0, 0, 10)
+		local tagPos = ent:EyePos() + Vector(0, 0, 10)
 		local screenPos = tagPos:ToScreen()
 		draw.SimpleText(name, "BudgetLabel", screenPos.x, screenPos.y, color, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 	end
@@ -27,22 +27,18 @@ if CLIENT then
 	end
 
 	local function DrawBoneLines(ent, color)
-		if not ent:IsValid() then return end
-		local boneCount = ent:GetBoneCount()
-		if not boneCount or boneCount <= 0 then return end
 		render.SetColorMaterial()
-		local bonePositions = {}
-		for i = 0, boneCount - 1 do
-			local pos = ent:GetBonePosition(i)
-			if pos then bonePositions[i] = pos end
+		local n = ent:GetBoneCount()
+		local origin = ent:GetPos()
+		local positions = {}
+		for i = 0, n - 1 do
+			positions[i] = ent:GetBonePosition(i)
 		end
-		for i = 0, boneCount - 1 do
+		for i = 0, n - 1 do
 			local parent = ent:GetBoneParent(i)
-			if parent >= 0 and bonePositions[i] and bonePositions[parent] then
-				local dist = bonePositions[i]:Distance(bonePositions[parent])
-				if dist <= 30 then
-					render.DrawLine(bonePositions[i], bonePositions[parent], color, false)
-				end
+			local pos, parentPos = positions[i], positions[parent]
+			if pos and parentPos and pos:Distance(origin) > 1 and parentPos:Distance(origin) > 1 then
+				render.DrawLine(pos, parentPos, color, false)
 			end
 		end
 	end
@@ -67,12 +63,36 @@ if CLIENT then
 		end
 	end)
 
+	hook.Add("PostDrawOpaqueRenderables", "DrawBones", function()
+		if not (settings.playerbones or settings.npcbones) then return end
+		cam.IgnoreZ(true)
+		if settings.npcbones then
+			for _, npc in ipairs(ents.FindByClass("npc_*")) do
+				if IsValid(npc) and npc:Health() > 0 then
+					DrawBoneLines(npc, Color(255, 0, 0))
+				end
+			end
+		end
+		if settings.playerbones then
+			for _, ply in ipairs(player.GetAll()) do
+				if ply ~= LocalPlayer() and ply:Alive() then
+					DrawBoneLines(ply, Color(255, 255, 0))
+				end
+			end
+		end
+		cam.IgnoreZ(false)
+	end)
+
 	hook.Add("PostDrawTranslucentRenderables", "DrawLinesToEntities", function()
 		local ply = LocalPlayer()
 		if not IsValid(ply) or not ply:Alive() then return end
 		cam.IgnoreZ(true)
-		if settings.npccursorlines then DrawCursorLines(ents.FindByClass("npc_*"), Color(255, 0, 0), function(npc) return npc:Health() > 0 end) end
-		if settings.playercursorlines then DrawCursorLines(player.GetAll(), Color(255,255,0), function(ply) return ply~=LocalPlayer() and ply:Alive() end) end
+		if settings.npccursorlines then
+			DrawCursorLines(ents.FindByClass("npc_*"), Color(255, 0, 0), function(npc) return npc:Health() > 0 end)
+		end
+		if settings.playercursorlines then
+			DrawCursorLines(player.GetAll(), Color(255, 255, 0), function(p) return p ~= ply and p:Alive() end)
+		end
 		cam.IgnoreZ(false)
 	end)
 
@@ -103,31 +123,11 @@ if CLIENT then
 		end
 		if settings.playernametags then
 			for _, ply in ipairs(player.GetAll()) do
-				if ply ~= LocalPlayer() and ply:Alive() and IsValid(ply) then
+				if ply ~= LocalPlayer() and ply:Alive() then
 					DrawNameTag(ply, ply:Nick(), Color(255, 255, 0))
 				end
 			end
 		end
-	end)
-
-	hook.Add("PostDrawOpaqueRenderables", "DrawBones", function()
-		if not (settings.playerbones or settings.npcbones) then return end
-		cam.IgnoreZ(true)
-		if settings.playerbones then
-			for _, ply in ipairs(player.GetAll()) do
-				if ply ~= LocalPlayer() and ply:Alive() then
-					DrawBoneLines(ply, Color(255, 255, 0))
-				end
-			end
-		end
-		if settings.npcbones then
-			for _, npc in ipairs(ents.FindByClass("npc_*")) do
-				if npc:IsValid() and npc:Health() > 0 then
-					DrawBoneLines(npc, Color(255, 0, 0))
-				end
-			end
-		end
-		cam.IgnoreZ(false)
 	end)
 
 	local utilityMenu
@@ -143,16 +143,16 @@ if CLIENT then
 		return label
 	end
 
-	local function createCheckbox(parent, name, settingKey)
+	local function createCheckbox(parent, name, key)
 		local check = vgui.Create("DCheckBoxLabel", parent)
 		check:SetText(name)
-		check:SetValue(settings[settingKey])
+		check:SetValue(settings[key])
 		check:Dock(TOP)
 		check:DockMargin(15, 0, 0, 5)
 		check:SetTextColor(color_white)
 		check.OnChange = function(_, val)
-			settings[settingKey] = val
-			cookie.Set("utility_" .. settingKey, val and "1" or "0")
+			settings[key] = val
+			cookie.Set("utility_" .. key, val and "1" or "0")
 		end
 		return check
 	end
@@ -171,7 +171,6 @@ if CLIENT then
 
 		local utilityPanel = vgui.Create("DPanel")
 		utilityPanel:Dock(FILL)
-		utilityPanel.Paint = nil
 		local scrollUtility = vgui.Create("DScrollPanel", utilityPanel)
 		scrollUtility:Dock(FILL)
 
@@ -180,7 +179,6 @@ if CLIENT then
 
 		local displayPanel = vgui.Create("DPanel")
 		displayPanel:Dock(FILL)
-		displayPanel.Paint = nil
 		local scrollDisplay = vgui.Create("DScrollPanel", displayPanel)
 		scrollDisplay:Dock(FILL)
 
@@ -202,7 +200,6 @@ if CLIENT then
 
 		local actPanel = vgui.Create("DPanel")
 		actPanel:Dock(FILL)
-		actPanel.Paint = nil
 		local scrollAct = vgui.Create("DScrollPanel", actPanel)
 		scrollAct:Dock(FILL)
 
@@ -213,14 +210,10 @@ if CLIENT then
 		grid:SetSpaceY(5)
 		grid:DockMargin(10, 0, 10, 0)
 
-		local buttonWidth = (scrollAct:GetWide() - (5 * 4) - 20) / 5
-		local buttonHeight = 30
-		buttonWidth = 50
-
 		for _, act in ipairs(actList) do
 			local btn = grid:Add("DButton")
 			btn:SetText(act:sub(1,1):upper() .. act:sub(2))
-			btn:SetSize(buttonWidth, buttonHeight)
+			btn:SetSize(50, 30)
 			btn.DoClick = function()
 				RunConsoleCommand("act", act)
 			end
@@ -233,6 +226,7 @@ if CLIENT then
 
 	concommand.Add("open_utility_menu", function()
 		if not IsValid(utilityMenu) then CreateUtilityMenu() end
-		utilityMenu:SetVisible(true) utilityMenu:MakePopup()
+		utilityMenu:SetVisible(true)
+		utilityMenu:MakePopup()
 	end)
 end
