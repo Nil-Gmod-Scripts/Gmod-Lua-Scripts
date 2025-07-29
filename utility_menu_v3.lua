@@ -1,7 +1,7 @@
 if CLIENT then
 	local settings = {autobhop = false, speedometer = false, propbox = false, npcbox = false, playerbox = false, npcnametags = false, playernametags = false, npccursorlines = false, playercursorlines = false, playerbones = false, npcbones = false,}
-
 	local actList = {"dance", "robot", "muscle", "zombie", "agree", "disagree", "cheer", "wave", "laugh", "forward", "group", "halt", "salute", "becon", "bow"}
+	local propColor = Color(0, 255, 255) local npcColor = Color(255, 0, 0) local playerColor = Color(255, 255, 0)
 
 	for k in pairs(settings) do settings[k] = cookie.GetNumber("utility_" .. k, 0) == 1 end
 
@@ -21,9 +21,8 @@ if CLIENT then
 
 	function util.DrawCursorLines(entities, color, filter)
 		local ply = LocalPlayer()
-		local screenX = ScrW() / 2
-		local screenY = ScrH() / 2
-		local dir = gui.ScreenToVector(screenX, screenY)
+		local x = ScrW() / 2 local y = ScrH() / 2
+		local dir = gui.ScreenToVector(x, y)
 		local startPos = ply:EyePos() + dir * 50
 		for _, ent in ipairs(entities) do
 			if not filter or filter(ent) then
@@ -55,21 +54,21 @@ if CLIENT then
 		if settings.propbox then
 			for _, ent in ipairs(ents.GetAll()) do
 				if ent:GetClass():find("^prop_") then
-					util.DrawBoundingBox(ent, Color(0, 255, 255))
+					util.DrawBoundingBox(ent, propColor)
 				end
 			end
 		end
 		if settings.npcbox then
 			for _, ent in ipairs(ents.FindByClass("npc_*")) do
 				if ent:Alive() then
-					util.DrawBoundingBox(ent, Color(255, 0, 0), Angle(0, 0, 0))
+					util.DrawBoundingBox(ent, npcColor, Angle(0, 0, 0))
 				end
 			end
 		end
 		if settings.playerbox then
 			for _, ply in ipairs(player.GetAll()) do
 				if ply ~= LocalPlayer() and ply:Alive() then
-					util.DrawBoundingBox(ply, Color(255, 255, 0), Angle(0, 0, 0))
+					util.DrawBoundingBox(ply, playerColor, Angle(0, 0, 0))
 				end
 			end
 		end
@@ -79,15 +78,15 @@ if CLIENT then
 		if not (settings.playerbones or settings.npcbones) then return end
 		if settings.npcbones then
 			for _, npc in ipairs(ents.FindByClass("npc_*")) do
-				if IsValid(npc) and npc:Health() > 0 then
-					util.DrawBoneLines(npc, Color(255, 0, 0))
+				if IsValid(npc) and npc:Alive() then
+					util.DrawBoneLines(npc, npcColor)
 				end
 			end
 		end
 		if settings.playerbones then
 			for _, ply in ipairs(player.GetAll()) do
 				if ply ~= LocalPlayer() and ply:Alive() then
-					util.DrawBoneLines(ply, Color(255, 255, 0))
+					util.DrawBoneLines(ply, playerColor)
 				end
 			end
 		end
@@ -98,10 +97,10 @@ if CLIENT then
 		if not IsValid(ply) or not ply:Alive() or ply:ShouldDrawLocalPlayer() then return end
 		cam.IgnoreZ(true)
 		if settings.npccursorlines then
-			util.DrawCursorLines(ents.FindByClass("npc_*"), Color(255, 0, 0), function(npc) return npc:Health() > 0 end)
+			util.DrawCursorLines(ents.FindByClass("npc_*"), npcColor, function(npc) return npc:Alive() end)
 		end
 		if settings.playercursorlines then
-			util.DrawCursorLines(player.GetAll(), Color(255, 255, 0), function(p) return p ~= ply and p:Alive() end)
+			util.DrawCursorLines(player.GetAll(), playerColor, function(p) return p ~= ply and p:Alive() end)
 		end
 		cam.IgnoreZ(false)
 	end)
@@ -116,25 +115,26 @@ if CLIENT then
 	end)
 
 	hook.Add("HUDPaint", "ShowPlayerSpeed", function()
+		local x = ScrW() / 2 - 45 local y = ScrH() / 2 + 75
 		local ply = LocalPlayer()
-		if IsValid(ply) and ply:Alive() and settings.speedometer and not ply:ShouldDrawLocalPlayer() then
-			draw.SimpleText(("Speed: %d u/s"):format(math.Round(ply:GetVelocity():Length())), "BudgetLabel", 600, 450, Color(255, 255, 0), TEXT_ALIGN_LEFT)
+		if IsValid(ply) and ply:Alive() and settings.speedometer then
+			draw.SimpleText(("Speed: %d u/s"):format(math.Round(ply:GetVelocity():Length())), "BudgetLabel", x, y, Color(255, 255, 0), TEXT_ALIGN_LEFT)
 		end
 	end)
 
 	hook.Add("HUDPaint", "DrawNameTags", function()
 		if settings.npcnametags then
 			for _, npc in ipairs(ents.FindByClass("npc_*")) do
-				if npc:Health() > 0 then
+				if npc:Alive() then
 					local npcName = npc.GetName and npc:GetName() or npc:GetClass()
-					util.DrawNameTag(npc, npcName, Color(255, 0, 0))
+					util.DrawNameTag(npc, npcName, npcColor)
 				end
 			end
 		end
 		if settings.playernametags then
 			for _, ply in ipairs(player.GetAll()) do
 				if ply ~= LocalPlayer() and ply:Alive() then
-					util.DrawNameTag(ply, ply:Nick(), Color(255, 255, 0))
+					util.DrawNameTag(ply, ply:Nick(), playerColor)
 				end
 			end
 		end
@@ -145,8 +145,8 @@ if CLIENT then
 	local function createLabel(parent, text, font, color)
 		local label = vgui.Create("DLabel", parent)
 		label:SetText(text)
-		label:SetFont(font or "DermaDefaultBold")
-		label:SetTextColor(color or color_white)
+		label:SetFont("DermaDefaultBold")
+		label:SetTextColor(color_white)
 		label:Dock(TOP)
 		label:DockMargin(10, 5, 0, 5)
 		label:SizeToContents()
@@ -160,10 +160,7 @@ if CLIENT then
 		check:Dock(TOP)
 		check:DockMargin(15, 0, 0, 5)
 		check:SetTextColor(color_white)
-		check.OnChange = function(_, val)
-			settings[key] = val
-			cookie.Set("utility_" .. key, val and "1" or "0")
-		end
+		check.OnChange = function(_, val) settings[key] = val, cookie.Set("utility_" .. key, val and "1" or "0") end
 		return check
 	end
 
