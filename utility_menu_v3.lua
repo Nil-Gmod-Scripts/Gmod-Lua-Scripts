@@ -171,6 +171,7 @@ if CLIENT then
 
 		local utilityPanel = vgui.Create("DPanel")
 		utilityPanel:Dock(FILL)
+		utilityPanel.Paint = nil
 		local scrollUtility = vgui.Create("DScrollPanel", utilityPanel)
 		scrollUtility:Dock(FILL)
 
@@ -179,6 +180,7 @@ if CLIENT then
 
 		local displayPanel = vgui.Create("DPanel")
 		displayPanel:Dock(FILL)
+		displayPanel.Paint = nil
 		local scrollDisplay = vgui.Create("DScrollPanel", displayPanel)
 		scrollDisplay:Dock(FILL)
 
@@ -200,6 +202,7 @@ if CLIENT then
 
 		local actPanel = vgui.Create("DPanel")
 		actPanel:Dock(FILL)
+		actPanel.Paint = nil
 		local scrollAct = vgui.Create("DScrollPanel", actPanel)
 		scrollAct:Dock(FILL)
 
