@@ -1,5 +1,5 @@
 if CLIENT then
-	local settings = {autobhop = false, speedometer = false, propbox = false, npcbox = false, playerbox = false, npcnametags = false, playernametags = false, npccursorlines = false, playercursorlines = false, playerbones = false, npcbones = false,}
+	local settings = {autobhop = false, speedometer = false, propbox = false, npcbox = false, playerbox = false, npcnametags = false, playernametags = false, npccursorlines = false, playercursorlines = false, playerbones = false, npcbones = false}
 	local actList = {"dance", "robot", "muscle", "zombie", "agree", "disagree", "cheer", "wave", "laugh", "forward", "group", "halt", "salute", "becon", "bow"}
 	local propColor = Color(0, 255, 255) local npcColor = Color(255, 0, 0) local playerColor = Color(255, 255, 0)
 
@@ -21,12 +21,15 @@ if CLIENT then
 
 	function util.DrawCursorLines(entities, color, filter)
 		local ply = LocalPlayer()
-		local x = ScrW() / 2 local y = ScrH() / 2
+		local x = ScrW() / 2
+		local y = ScrH() / 2
 		local dir = gui.ScreenToVector(x, y)
-		local startPos = ply:EyePos() + dir * 50
+		local startPos = ply:EyePos() + dir * 100
 		for _, ent in ipairs(entities) do
 			if not filter or filter(ent) then
+				cam.IgnoreZ(true)
 				render.DrawLine(startPos, ent:EyePos(), color, true)
+				cam.IgnoreZ(false)
 			end
 		end
 	end
@@ -94,15 +97,13 @@ if CLIENT then
 
 	hook.Add("PostDrawTranslucentRenderables", "DrawLinesToEntities", function()
 		local ply = LocalPlayer()
-		if not IsValid(ply) or not ply:Alive() or ply:ShouldDrawLocalPlayer() then return end
-		cam.IgnoreZ(true)
+		if not ply:Alive() or ply:ShouldDrawLocalPlayer() then return end
 		if settings.npccursorlines then
 			util.DrawCursorLines(ents.FindByClass("npc_*"), npcColor, function(npc) return npc:Alive() end)
 		end
 		if settings.playercursorlines then
 			util.DrawCursorLines(player.GetAll(), playerColor, function(p) return p ~= ply and p:Alive() end)
 		end
-		cam.IgnoreZ(false)
 	end)
 
 	hook.Add("CreateMove", "CustomMovementControls", function(cmd)
@@ -115,7 +116,8 @@ if CLIENT then
 	end)
 
 	hook.Add("HUDPaint", "ShowPlayerSpeed", function()
-		local x = ScrW() / 2 - 45 local y = ScrH() / 2 + 75
+		local x = ScrW() / 2 - 45
+		local y = ScrH() / 2 + 75
 		local ply = LocalPlayer()
 		if IsValid(ply) and ply:Alive() and settings.speedometer then
 			draw.SimpleText(("Speed: %d u/s"):format(math.Round(ply:GetVelocity():Length())), "BudgetLabel", x, y, Color(255, 255, 0), TEXT_ALIGN_LEFT)
