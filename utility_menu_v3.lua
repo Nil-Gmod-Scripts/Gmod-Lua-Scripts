@@ -1,5 +1,4 @@
 if CLIENT then
-	-- Localized settings, colors, actions
 	local settings = {
 		autobhop = false, speedometer = false,
 		propbox = false, npcbox = false, playerbox = false,
@@ -18,7 +17,6 @@ if CLIENT then
 		settings[k] = cookie.GetNumber("utility_" .. k, 0) == 1
 	end
 
-	-- Utils
 	local util = {}
 
 	function util.DrawBoundingBox(ent, color, ang)
@@ -59,7 +57,6 @@ if CLIENT then
 		end
 	end
 
-	-- Hooks
 	hook.Add("PostDrawOpaqueRenderables", "DrawBoxesAndBones", function()
 		for _, ent in ipairs(ents.GetAll()) do
 			local class = ent:GetClass()
@@ -110,7 +107,6 @@ if CLIENT then
 		end
 	end)
 
-	-- Freecam
 	local freecamEnabled, freecamPos, freecamAng, frozenPlayerViewAng = false, Vector(), Angle(), Angle()
 	local ROTATE_UP, ROTATE_DOWN, ROTATE_LEFT, ROTATE_RIGHT = KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT
 
@@ -140,7 +136,6 @@ if CLIENT then
 		local speed = input.IsKeyDown(KEY_LSHIFT) and 25 or 10
 		local rot = 1.5
 
-		-- Optional keyboard rotation (can remove if you want)
 		if input.IsKeyDown(ROTATE_UP) then freecamAng.p = math.Clamp(freecamAng.p - rot, -89, 89) end
 		if input.IsKeyDown(ROTATE_DOWN) then freecamAng.p = math.Clamp(freecamAng.p + rot, -89, 89) end
 		if input.IsKeyDown(ROTATE_LEFT) then freecamAng.y = freecamAng.y + rot end
@@ -157,11 +152,9 @@ if CLIENT then
 		cmd:RemoveKey(IN_JUMP)
 		cmd:RemoveKey(IN_DUCK)
 
-		-- Freeze player view so your normal view doesn’t interfere
 		cmd:SetViewAngles(frozenPlayerViewAng)
 	end)
 
-	-- UI
 	local function createLabel(p, t)
 		local l = vgui.Create("DLabel", p)
 		l:SetText(t)
