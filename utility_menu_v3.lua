@@ -1,35 +1,24 @@
 if CLIENT then
-	local settings = {
-		autobhop = false, speedometer = false,
-		propbox = false, npcbox = false, playerbox = false,
-		npcnametags = false, playernametags = false,
-		npccursorlines = false, playercursorlines = false,
-		playerbones = false, npcbones = false
-	}
-	local colors = {
-		prop = Color(0, 255, 255),
-		npc = Color(255, 0, 0),
-		player = Color(255, 255, 0)
-	}
+	local settings = {autobhop = false, speedometer = false, propbox = false, npcbox = false, playerbox = false, npcnametags = false, playernametags = false, npccursorlines = false, playercursorlines = false, playerbones = false, npcbones = false}
+	local colors = {prop = Color(0, 255, 255), npc = Color(255, 0, 0), player = Color(255, 255, 0)}
+	local freecamSettings = {sensitivity = 1.75, speed = 10, fastSpeed = 25, acceleration = 0}
 	local actList = {"dance", "robot", "muscle", "zombie", "agree", "disagree", "cheer", "wave", "laugh", "forward", "group", "halt", "salute", "becon", "bow"}
-
-	for k in pairs(settings) do
-		settings[k] = cookie.GetNumber("utility_" .. k, 0) == 1
-	end
-
+	local freecamEnabled, freecamPos, freecamAng, frozenPlayerViewAng = false, Vector(), Angle(), Angle()
+	local ROTATE_UP, ROTATE_DOWN, ROTATE_LEFT, ROTATE_RIGHT = KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT
 	local util = {}
+	local utilityMenu
+
+	for k in pairs(settings) do settings[k] = cookie.GetNumber("utility_" .. k, 0) == 1 end
 
 	function util.DrawBoundingBox(ent, color, ang)
 		cam.IgnoreZ(true)
 		render.DrawWireframeBox(ent:GetPos(), ang or ent:GetAngles(), ent:OBBMins(), ent:OBBMaxs(), color, true)
 		cam.IgnoreZ(false)
 	end
-
 	function util.DrawNameTag(ent, name, color)
 		local pos = ent:EyePos():ToScreen()
 		draw.SimpleText(name, "BudgetLabel", pos.x, pos.y, color, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 	end
-
 	function util.DrawCursorLines(entities, color, filter)
 		local ply, dir = LocalPlayer(), gui.ScreenToVector(ScrW() / 2, ScrH() / 2)
 		local startPos = ply:EyePos() + dir * 100
@@ -41,7 +30,6 @@ if CLIENT then
 			end
 		end
 	end
-
 	function util.DrawBoneLines(ent, color)
 		render.SetColorMaterial()
 		local n, origin = ent:GetBoneCount(), ent:GetPos()
@@ -73,21 +61,18 @@ if CLIENT then
 			if settings.npcbones and npc:Alive() then util.DrawBoneLines(npc, colors.npc) end
 		end
 	end)
-
 	hook.Add("PostDrawTranslucentRenderables", "DrawCursorLines", function()
 		local ply = LocalPlayer()
 		if not ply:Alive() or ply:ShouldDrawLocalPlayer() then return end
 		if settings.npccursorlines then util.DrawCursorLines(ents.FindByClass("npc_*"), colors.npc, function(e) return e:Alive() end) end
 		if settings.playercursorlines then util.DrawCursorLines(player.GetAll(), colors.player, function(p) return p ~= ply and p:Alive() end) end
 	end)
-
 	hook.Add("CreateMove", "CustomMovement", function(cmd)
 		local ply = LocalPlayer()
 		if settings.autobhop and ply:Alive() and ply:GetMoveType() ~= MOVETYPE_NOCLIP and ply:WaterLevel() < 2 then
 			if not ply:IsOnGround() and cmd:KeyDown(IN_JUMP) then cmd:RemoveKey(IN_JUMP) end
 		end
 	end)
-
 	hook.Add("HUDPaint", "DrawSpeedAndNames", function()
 		local ply = LocalPlayer()
 		if IsValid(ply) and ply:Alive() then
@@ -106,9 +91,29 @@ if CLIENT then
 			end
 		end
 	end)
-
-	local freecamEnabled, freecamPos, freecamAng, frozenPlayerViewAng = false, Vector(), Angle(), Angle()
-	local ROTATE_UP, ROTATE_DOWN, ROTATE_LEFT, ROTATE_RIGHT = KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT
+	hook.Add("CreateMove", "FreecamMove", function(cmd)
+		if not freecamEnabled then return end
+		local mouseX = cmd:GetMouseX()
+		local mouseY = cmd:GetMouseY()
+		freecamAng.p = math.Clamp(freecamAng.p + mouseY * freecamSettings.sensitivity * 0.01, -89, 89)
+		freecamAng.y = freecamAng.y - mouseX * freecamSettings.sensitivity * 0.01
+		freecamAng.r = 0
+		local speed = (input.IsKeyDown(KEY_LSHIFT) and freecamSettings.fastSpeed or freecamSettings.speed)
+		local wishMove = Vector()
+		if input.IsKeyDown(KEY_W) then wishMove = wishMove + freecamAng:Forward() end
+		if input.IsKeyDown(KEY_S) then wishMove = wishMove - freecamAng:Forward() end
+		if input.IsKeyDown(KEY_D) then wishMove = wishMove + freecamAng:Right() end
+		if input.IsKeyDown(KEY_A) then wishMove = wishMove - freecamAng:Right() end
+		if input.IsKeyDown(KEY_SPACE) then wishMove = wishMove + freecamAng:Up() end
+		if input.IsKeyDown(KEY_LCONTROL) then wishMove = wishMove - freecamAng:Up() end
+		if wishMove:LengthSqr() > 0 then
+			wishMove:Normalize()
+			freecamPos = freecamPos + wishMove * speed
+		end
+		cmd:ClearButtons()
+		cmd:ClearMovement()
+		cmd:SetViewAngles(frozenPlayerViewAng)
+	end)
 
 	local function EnableFreecam()
 		local ply = LocalPlayer()
@@ -116,12 +121,13 @@ if CLIENT then
 		freecamPos, freecamAng = ply:EyePos(), ply:EyeAngles()
 		frozenPlayerViewAng = ply:EyeAngles()
 		ply:SetMoveType(MOVETYPE_NONE)
+		ply:SetVelocity(vector_origin)
 		if ply.DrawViewModel then ply:DrawViewModel(false) end
+		input.SetCursorPos(ScrW()/2, ScrH()/2)
 		hook.Add("CalcView", "FreecamView", function(_,_,_,fov)
 			return {origin = freecamPos, angles = freecamAng, fov = fov, drawviewer = true}
 		end)
 	end
-
 	local function DisableFreecam()
 		local ply = LocalPlayer()
 		freecamEnabled = false
@@ -129,32 +135,6 @@ if CLIENT then
 		if ply.DrawViewModel then ply:DrawViewModel(true) end
 		hook.Remove("CalcView", "FreecamView")
 	end
-
-	hook.Add("CreateMove", "FreecamMove", function(cmd)
-		if not freecamEnabled then return end
-
-		local speed = input.IsKeyDown(KEY_LSHIFT) and 25 or 10
-		local rot = 1.5
-
-		if input.IsKeyDown(ROTATE_UP) then freecamAng.p = math.Clamp(freecamAng.p - rot, -89, 89) end
-		if input.IsKeyDown(ROTATE_DOWN) then freecamAng.p = math.Clamp(freecamAng.p + rot, -89, 89) end
-		if input.IsKeyDown(ROTATE_LEFT) then freecamAng.y = freecamAng.y + rot end
-		if input.IsKeyDown(ROTATE_RIGHT) then freecamAng.y = freecamAng.y - rot end
-		freecamAng.r = 0
-
-		local f = (cmd:KeyDown(IN_FORWARD) and 1 or cmd:KeyDown(IN_BACK) and -1 or 0)
-		local r = (cmd:KeyDown(IN_MOVERIGHT) and 1 or cmd:KeyDown(IN_MOVELEFT) and -1 or 0)
-		local u = (cmd:KeyDown(IN_JUMP) and 1 or input.IsKeyDown(KEY_LCONTROL) and -1 or 0)
-		local vec = freecamAng:Forward() * f + freecamAng:Right() * r + freecamAng:Up() * u
-		if vec:LengthSqr() > 0 then freecamPos:Add(vec:GetNormalized() * speed) end
-
-		cmd:ClearMovement()
-		cmd:RemoveKey(IN_JUMP)
-		cmd:RemoveKey(IN_DUCK)
-
-		cmd:SetViewAngles(frozenPlayerViewAng)
-	end)
-
 	local function createLabel(p, t)
 		local l = vgui.Create("DLabel", p)
 		l:SetText(t)
@@ -182,15 +162,12 @@ if CLIENT then
 		frame:SetTitle("Utility Menu")
 		frame:SetDeleteOnClose(false)
 		frame:SetVisible(false)
-
 		local tabs = vgui.Create("DPropertySheet", frame)
 		tabs:Dock(FILL)
 		tabs:SetFadeTime(0)
-
 		local scrollUtility, scrollDisplay, scrollAct = vgui.Create("DScrollPanel"), vgui.Create("DScrollPanel"), vgui.Create("DScrollPanel")
 		createLabel(scrollUtility, "Miscellaneous")
 		createCheckbox(scrollUtility, "Auto Bhop", "autobhop")
-
 		createLabel(scrollDisplay, "Miscellaneous")
 		createCheckbox(scrollDisplay, "Speedometer", "speedometer")
 		createCheckbox(scrollDisplay, "Prop Box", "propbox")
@@ -204,7 +181,6 @@ if CLIENT then
 		createCheckbox(scrollDisplay, "Player Bones", "playerbones")
 		createCheckbox(scrollDisplay, "Player Nametags", "playernametags")
 		createCheckbox(scrollDisplay, "Player Cursor Lines", "playercursorlines")
-
 		createLabel(scrollAct, "Player Gestures")
 		local grid = vgui.Create("DIconLayout", scrollAct)
 		grid:Dock(TOP); grid:SetSpaceX(5); grid:SetSpaceY(5); grid:DockMargin(10, 0, 10, 0)
@@ -214,14 +190,12 @@ if CLIENT then
 			btn:SetSize(50, 30)
 			btn.DoClick = function() RunConsoleCommand("act", act) end
 		end
-
 		tabs:AddSheet(" Utility", scrollUtility, "icon16/wrench.png")
 		tabs:AddSheet(" Display", scrollDisplay, "icon16/monitor.png")
 		tabs:AddSheet(" Act", scrollAct, "icon16/user.png")
 		return frame
 	end
 
-	local utilityMenu
 	concommand.Add("open_utility_menu", function()
 		if not IsValid(utilityMenu) then utilityMenu = CreateUtilityMenu() end
 		utilityMenu:SetVisible(true)
