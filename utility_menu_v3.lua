@@ -92,7 +92,7 @@ if CLIENT then
 		end
 	end)
 	hook.Add("CreateMove", "FreecamMove", function(cmd)
-		if not freecamEnabled then return end
+		if not freecamEnabled or vgui.GetKeyboardFocus() then return end
 		local mouseX = cmd:GetMouseX()
 		local mouseY = cmd:GetMouseY()
 		freecamAng.p = math.Clamp(freecamAng.p + mouseY * freecamSettings.sensitivity * 0.01, -89, 89)
