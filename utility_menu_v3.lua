@@ -187,7 +187,7 @@ if CLIENT then
 		for _, act in ipairs(actList) do
 			local btn = grid:Add("DButton")
 			btn:SetText(act:sub(1,1):upper() .. act:sub(2))
-			btn:SetSize(60, 30)
+			btn:SetSize(55, 30)
 			btn.DoClick = function() RunConsoleCommand("act", act) end
 		end
 		tabs:AddSheet(" Utility", scrollUtility, "icon16/wrench.png")
