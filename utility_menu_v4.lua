@@ -2,11 +2,10 @@ if CLIENT then
 
 	-- #$%#$% LOCALS #$%#$%
 
-	local actList = {"dance", "robot", "muscle", "zombie", "agree", "disagree", "cheer", "wave", "laugh", "forward", "group", "halt", "salute", "becon", "bow"}
+	local actList = {"agree", "becon", "bow", "cheer", "dance", "disagree", "forward", "group", "halt", "laugh", "muscle", "robot", "salute", "wave", "zombie"}
 	local freecamtoggle, freecamPos, freecamAng, frozenPlayerViewAng = false, Vector(0, 0, 0), Angle(0, 0, 0), Angle(0, 0, 0)
-	local colors = {prop = Color(0, 255, 255), npc = Color(255, 0, 0), player = Color(255, 255, 0)}
 	local freecamSettings = {sensitivity = 1.75, speed = 10, fastSpeed = 25}
-	local utilityMenu, ply = nil, LocalPlayer()
+	local utilityMenu = nil
 
 	-- #$%#$% FUNCTIONS #$%#$%
 
@@ -22,6 +21,7 @@ if CLIENT then
 	end
 
 	local function cursorline(entities, color)
+		local ply = LocalPlayer()
 		local dir = gui.ScreenToVector(ScrW() / 2, ScrH() / 2)
 		local startPos = ply:EyePos() + dir * 100
 		for _, ent in ipairs(entities) do
@@ -49,6 +49,7 @@ if CLIENT then
 	end
 
 	local function enablefreecam()
+		local ply = LocalPlayer()
 		freecamtoggle = true
 		freecamPos, freecamAng = ply:EyePos(), ply:EyeAngles()
 		frozenPlayerViewAng = ply:EyeAngles()
@@ -63,13 +64,41 @@ if CLIENT then
 	end
 	
 	local function getsettings()
-		return {autobhop = cookie.GetNumber("utility_autobhop", 0) == 1, propbox = cookie.GetNumber("utility_propbox", 0) == 1, npcbox = cookie.GetNumber("utility_npcbox", 0) == 1, playerbox = cookie.GetNumber("utility_playerbox", 0) == 1, speedometer = cookie.GetNumber("utility_speedometer", 0) == 1, npcnametag = cookie.GetNumber("utility_npcnametag", 0) == 1, npccursorline = cookie.GetNumber("utility_npccursorline", 0) == 1, playernametag = cookie.GetNumber("utility_playernametag", 0) == 1, playercursorline = cookie.GetNumber("utility_playercursorline", 0) == 1, playerbones = cookie.GetNumber("utility_playerbones", 0) == 1, npcbones = cookie.GetNumber("utility_npcbones", 0) == 1}
+		return {
+			autobhop = cookie.GetNumber("utility_autobhop", 0) == 1,
+			propbox = cookie.GetNumber("utility_propbox", 0) == 1,
+			npcbox = cookie.GetNumber("utility_npcbox", 0) == 1,
+			playerbox = cookie.GetNumber("utility_playerbox", 0) == 1,
+			speedometer = cookie.GetNumber("utility_speedometer", 0) == 1,
+			npcnametag = cookie.GetNumber("utility_npcnametag", 0) == 1,
+			npccursorline = cookie.GetNumber("utility_npccursorline", 0) == 1,
+			playernametag = cookie.GetNumber("utility_playernametag", 0) == 1,
+			playercursorline = cookie.GetNumber("utility_playercursorline", 0) == 1,
+			playerbones = cookie.GetNumber("utility_playerbones", 0) == 1,
+			npcbones = cookie.GetNumber("utility_npcbones", 0) == 1,
+			npchighlight = cookie.GetNumber("utility_npchighlight", 0) == 1,
+			prophighlight = cookie.GetNumber("utility_prophighlight", 0) == 1,
+			playerhighlight = cookie.GetNumber("utility_playerhighlight", 0) == 1,
+			highlight_opacity = cookie.GetNumber("utility_highlight_opacity", 100)
+		}
+	end
+
+	local function getColors()
+		return {
+			prop = Color(cookie.GetNumber("utility_prop_r", 0), cookie.GetNumber("utility_prop_g", 255), cookie.GetNumber("utility_prop_b", 255)),
+			npc = Color(cookie.GetNumber("utility_npc_r", 255), cookie.GetNumber("utility_npc_g", 0), cookie.GetNumber("utility_npc_b", 0)),
+			npcnametag = Color(cookie.GetNumber("utility_npc_r", 255), cookie.GetNumber("utility_npc_g", 0), cookie.GetNumber("utility_npc_b", 0)),
+			player = Color(cookie.GetNumber("utility_player_r", 255), cookie.GetNumber("utility_player_g", 255), cookie.GetNumber("utility_player_b", 0)),
+			playernametag = Color(cookie.GetNumber("utility_player_r", 255), cookie.GetNumber("utility_player_g", 255), cookie.GetNumber("utility_player_b", 0))
+		}
 	end
 
 	-- #$%#$% HOOKS #$%#$%
 
 	hook.Add("CreateMove", "bhop and freecam", function(cmd)
-		if getsettings().autobhop then
+		local settings = getsettings()
+		local ply = LocalPlayer()
+		if settings.autobhop then
 			if cmd:KeyDown(IN_JUMP) and not (ply:IsOnGround() or ply:WaterLevel() > 1 or ply:GetMoveType() == MOVETYPE_NOCLIP) then
 				cmd:RemoveKey(IN_JUMP)
 			end
@@ -99,28 +128,33 @@ if CLIENT then
 	end)
 
 	hook.Add("HUDPaint", "speedometer", function()
-		if getsettings().speedometer then
+		local settings = getsettings()
+		local ply = LocalPlayer()
+		if settings.speedometer then
 			local speed = math.Round(ply:GetVelocity():Length())
 			if ply:Alive() then
-				draw.SimpleText("Speed: " .. speed .. " u/s", "BudgetLabel", ScrW() / 2 - 45, ScrH() / 2 + 75, colors.player, TEXT_ALIGN_LEFT)
+				draw.SimpleText("Speed: " .. speed .. " u/s", "BudgetLabel", ScrW() / 2 - 45, ScrH() / 2 + 75, Color(255, 255, 255), TEXT_ALIGN_LEFT)
 			end
 		end
 	end)
 
 	hook.Add("PostDrawOpaqueRenderables", "box", function()
-		if getsettings().propbox then
+		local colors = getColors()
+		local settings = getsettings()
+		local ply = LocalPlayer()
+		if settings.propbox then
 			for _, ent in ipairs(ents.FindByClass("prop_*")) do
 				box(ent, colors.prop)
 			end
 		end
-		if getsettings().npcbox then
+		if settings.npcbox then
 			for _, npc in ipairs(ents.FindByClass("npc_*")) do
 				if npc:Alive() then
 					box(npc, colors.npc, Angle(0, 0, 0))
 				end
 			end
 		end
-		if getsettings().playerbox then
+		if settings.playerbox then
 			for _, ply in ipairs(player.GetAll()) do
 				if ply ~= LocalPlayer() and ply:Alive() then
 					box(ply, colors.player, Angle(0, 0, 0))
@@ -130,25 +164,31 @@ if CLIENT then
 	end)
 
 	hook.Add("HUDPaint", "nametag", function()
-		if getsettings().npcnametag then
+		local colors = getColors()
+		local settings = getsettings()
+		local ply = LocalPlayer()
+		if settings.npcnametag then
 			for _, npc in ipairs(ents.FindByClass("npc_*")) do
 				if npc:Alive() then
-					nametag(npc, npc.PrintName or npc:GetClass(), colors.npc)
+					nametag(npc, npc.PrintName or npc:GetClass(), colors.npcnametag)
 				end
 			end
 		end
-		if getsettings().playernametag then
+		if settings.playernametag then
 			for _, ply in ipairs(player.GetAll()) do
 				if ply ~= LocalPlayer() and ply:Alive() then
-					nametag(ply, ply:Nick(), colors.player)
+					nametag(ply, ply:Nick(), colors.playernametag)
 				end
 			end
 		end
 	end)
 
 	hook.Add("PostDrawTranslucentRenderables", "cursorline", function()
+		local colors = getColors()
+		local settings = getsettings()
+		local ply = LocalPlayer()
 		if ply:Alive() and not ply:ShouldDrawLocalPlayer() then
-			if getsettings().npccursorline then
+			if settings.npccursorline then
 				local npcs = {}
 				for _, npc in ipairs(ents.FindByClass("npc_*")) do
 					if npc:Alive() then
@@ -157,7 +197,7 @@ if CLIENT then
 				end
 				cursorline(npcs, colors.npc)
 			end
-			if getsettings().playercursorline then
+			if settings.playercursorline then
 				local players = {}
 				for _, ply in ipairs(player.GetAll()) do
 					if ply ~= LocalPlayer() and ply:Alive() then
@@ -170,14 +210,17 @@ if CLIENT then
 	end)
 
 	hook.Add("PostDrawTranslucentRenderables", "bones", function()
-		if getsettings().npcbones then
+		local colors = getColors()
+		local settings = getsettings()
+		local ply = LocalPlayer()
+		if settings.npcbones then
 			for _, npc in ipairs(ents.FindByClass("npc_*")) do
 				if npc:Alive() then
 					drawBones(npc, colors.npc)
 				end
 			end
 		end
-		if getsettings().playerbones then
+		if settings.playerbones then
 			for _, ply in ipairs(player.GetAll()) do
 				if ply ~= LocalPlayer() and ply:Alive() then
 					drawBones(ply, colors.player)
@@ -194,20 +237,59 @@ if CLIENT then
 		end
 	end)
 
+	local highlightMat = CreateMaterial("HighlightMat", "UnlitGeneric", {
+		["$basetexture"] = "models/debug/debugwhite",
+		["$ignorez"] = "1",
+		["$model"] = "1",
+		["$nocull"] = "1",
+		["$translucent"] = "1"
+	})
+
+	hook.Add("PostDrawOpaqueRenderables", "DrawHighlightedEntities", function()
+		local colors = getColors()
+		local settings = getsettings()
+		for _, ent in ipairs(ents.GetAll()) do
+			if not IsValid(ent) or ent == LocalPlayer() then continue end
+			if not ent.DrawModel then continue end
+			local class = ent:GetClass()
+			local color = nil
+			local alpha = settings.highlight_opacity
+			if settings.npchighlight and string.find(class, "npc_") then
+				color = Color(colors.npc.r, colors.npc.g, colors.npc.b, alpha)
+			elseif settings.playerhighlight and ent:IsPlayer() then
+				color = Color(colors.player.r, colors.player.g, colors.player.b, alpha)
+			elseif settings.prophighlight and string.find(class, "prop_") then
+				color = Color(colors.prop.r, colors.prop.g, colors.prop.b, alpha)
+			end
+			if color then
+				cam.IgnoreZ(true)
+				render.SetColorModulation(color.r / 255, color.g / 255, color.b / 255)
+				render.SetBlend(color.a / 255)
+				render.MaterialOverride(highlightMat)
+				ent:DrawModel()
+				render.MaterialOverride()
+				render.SetColorModulation(1, 1, 1)
+				render.SetBlend(1)
+				cam.IgnoreZ(false)
+				ent:SetNoDraw(true)
+			end
+		end
+	end)
+
 	-- #$%#$% MENU #$%#$%
 
-	local function createLabel(text, parent)
+	local function createlabel(text, parent)
 		local label = vgui.Create("DLabel", parent)
 		label:SetText(text)
 		label:SetFont("DermaDefaultBold")
 		label:SetTextColor(color_white)
 		label:SizeToContents()
 		label:Dock(TOP)
-		label:DockMargin(5, 5, 5, 0)
+		label:DockMargin(5, 5, 0, 0)
 		return label
 	end
 
-	local function createCheckbox(text, parent, settingKey)
+	local function createcheckbox(text, parent, settingKey)
 		local checkbox = vgui.Create("DCheckBoxLabel", parent)
 		checkbox:SetText(text)
 		checkbox:SetFont("DermaDefault")
@@ -215,68 +297,100 @@ if CLIENT then
 		checkbox:SetValue(cookie.GetNumber("utility_" .. settingKey, 0))
 		checkbox:SizeToContents()
 		checkbox:Dock(TOP)
-		checkbox:DockMargin(5, 5, 5, 0)
+		checkbox:DockMargin(10, 5, 0, 0)
 		checkbox.OnChange = function(_, val)
 			cookie.Set("utility_" .. settingKey, val and "1" or "0")
 		end
 		return checkbox
 	end
 
+	local function createSlider(text, parent, settingKey, min, max, default)
+		local slider = vgui.Create("DNumSlider", parent)
+		slider:Dock(TOP)
+		slider:DockMargin(10, 5, 0, 0)
+		slider:SetTall(15)
+		slider:SetMin(min)
+		slider:SetMax(max)
+		slider:SetDecimals(0)
+		slider:SetValue(cookie.GetNumber("utility_" .. settingKey, default))
+		slider:SetText(text)
+		slider.Label:SetTextColor(Color(255, 255, 255))
+		slider.TextArea:SetTextColor(Color(255, 255, 255))
+		slider.OnValueChanged = function(self, val)
+			cookie.Set("utility_" .. settingKey, math.Clamp(math.Round(val), min, max))
+		end
+		return slider
+	end
+
 	local function createMenu()
 		local frame = vgui.Create("DFrame")
 		local tab = vgui.Create("DPropertySheet", frame)
-		local scrollUtility = vgui.Create("DScrollPanel", tab)
-		local scrollDisplay = vgui.Create("DScrollPanel", tab)
-		local scrollAct = vgui.Create("DScrollPanel", tab)
-
+		local scrollutility = vgui.Create("DScrollPanel", tab)
+		local scrolldisplay = vgui.Create("DScrollPanel", tab)
+		local scrollact = vgui.Create("DScrollPanel", tab)
+		local scrollsettings = vgui.Create("DScrollPanel", tab)
 		frame.OnClose = function(self)
 			gui.EnableScreenClicker(false)
 		end
-
-		frame:SetSize(300, 400)
+		frame:SetSize(301, 425)
 		frame:Center()
 		frame:SetTitle("Utility Menu")
 		frame:SetDeleteOnClose(false)
 		frame:SetVisible(false)
-
 		tab:Dock(FILL)
 		tab:SetFadeTime(0)
-
-		createLabel("Miscellaneous Options:", scrollUtility)
-		createCheckbox("Auto Bhop", scrollUtility, "autobhop")
-		createLabel("Miscellaneous Options:", scrollDisplay)
-		createCheckbox("Speedometer", scrollDisplay, "speedometer")
-		createCheckbox("Prop Box", scrollDisplay, "propbox")
-		createLabel("NPC Options:", scrollDisplay)
-		createCheckbox("NPC Box", scrollDisplay, "npcbox")
-		createCheckbox("NPC Bones", scrollDisplay, "npcbones")
-		createCheckbox("NPC Nametag", scrollDisplay, "npcnametag")
-		createCheckbox("NPC Cursor Line", scrollDisplay, "npccursorline")
-		createLabel("Player Options:", scrollDisplay)
-		createCheckbox("Player Box", scrollDisplay, "playerbox")
-		createCheckbox("Player Bones", scrollDisplay, "playerbones")
-		createCheckbox("Player Nametag", scrollDisplay, "playernametag")
-		createCheckbox("Player Cursor Line", scrollDisplay, "playercursorline")
-		createLabel("Player Gestures:", scrollAct)
-
-		local grid = vgui.Create("DIconLayout", scrollAct)
+		createlabel("Miscellaneous Options:", scrollutility)
+		createcheckbox("Auto Bhop", scrollutility, "autobhop")
+		createlabel("Miscellaneous Options:", scrolldisplay)
+		createcheckbox("Speedometer", scrolldisplay, "speedometer")
+		createlabel("Prop Options:", scrolldisplay)
+		createcheckbox("Prop Box", scrolldisplay, "propbox")
+		createcheckbox("Prop Highlight", scrolldisplay, "prophighlight")
+		createlabel("NPC Options:", scrolldisplay)
+		createcheckbox("NPC Box", scrolldisplay, "npcbox")
+		createcheckbox("NPC Bones", scrolldisplay, "npcbones")
+		createcheckbox("NPC Highlight", scrolldisplay, "npchighlight")
+		createcheckbox("NPC Nametag", scrolldisplay, "npcnametag")
+		createcheckbox("NPC Cursor Line", scrolldisplay, "npccursorline")
+		createlabel("Player Options:", scrolldisplay)
+		createcheckbox("Player Box", scrolldisplay, "playerbox")
+		createcheckbox("Player Bones", scrolldisplay, "playerbones")
+		createcheckbox("Player Highlight", scrolldisplay, "playerhighlight")
+		createcheckbox("Player Nametag", scrolldisplay, "playernametag")
+		createcheckbox("Player Cursor Line", scrolldisplay, "playercursorline")
+		createlabel("Highlight Opacity:", scrollsettings)
+		createSlider("Highlight Opacity", scrollsettings, "highlight_opacity", 0, 255, 100)
+		createlabel("Prop Colors:", scrollsettings)
+		createSlider("Red", scrollsettings, "prop_r", 0, 255, 0)
+		createSlider("Green", scrollsettings, "prop_g", 0, 255, 255)
+		createSlider("Blue", scrollsettings, "prop_b", 0, 255, 255)
+		createlabel("NPC Colors:", scrollsettings)
+		createSlider("Red", scrollsettings, "npc_r", 0, 255, 255)
+		createSlider("Green", scrollsettings, "npc_g", 0, 255, 0)
+		createSlider("Blue", scrollsettings, "npc_b", 0, 255, 0)
+		createlabel("Player Colors:", scrollsettings)
+		createSlider("Red", scrollsettings, "player_r", 0, 255, 255)
+		createSlider("Green", scrollsettings, "player_g", 0, 255, 255)
+		createSlider("Blue", scrollsettings, "player_b", 0, 255, 0)
+		createlabel("Player Gestures:", scrollact)
+		local grid = vgui.Create("DIconLayout", scrollact)
 		grid:Dock(TOP)
 		grid:SetSpaceX(5)
 		grid:SetSpaceY(5)
-		grid:DockMargin(5, 5, 5, 0)
+		grid:CenterHorizontal()
+		grid:DockMargin(10, 5, 0, 0)
 		for _, act in ipairs(actList) do
 			local button = grid:Add("DButton")
-			button:SetText(act:sub(1,1):upper() .. act:sub(2))
+			button:SetText(act:sub(1,1):upper() .. act:sub(2):lower())
 			button:SetSize(60, 30)
 			button.DoClick = function()
 				RunConsoleCommand("act", act)
 			end
 		end
-
-		tab:AddSheet("Utility", scrollUtility, "icon16/wrench.png")
-		tab:AddSheet("Display", scrollDisplay, "icon16/monitor.png")
-		tab:AddSheet("Act", scrollAct, "icon16/user.png")
-
+		tab:AddSheet("Utility", scrollutility, "icon16/wrench.png")
+		tab:AddSheet("Display", scrolldisplay, "icon16/monitor.png")
+		tab:AddSheet("Act", scrollact, "icon16/user.png")
+		tab:AddSheet("Settings", scrollsettings, "icon16/cog.png")
 		return frame
 	end
 
