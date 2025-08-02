@@ -2,26 +2,26 @@ if CLIENT then
 
 	-- #$%#$% LOCALS #$%#$%
 
-	local settings = {autobhop = cookie.GetNumber("utility_autobhop", 0) == 1, propbox = cookie.GetNumber("utility_propbox", 0) == 1, npcbox = cookie.GetNumber("utility_npcbox", 0) == 1, playerbox = cookie.GetNumber("utility_playerbox", 0) == 1, speedometer = cookie.GetNumber("utility_speedometer", 0) == 1, npcnametag = cookie.GetNumber("utility_npcnametag", 0) == 1, npccursorline = cookie.GetNumber("utility_npccursorline", 0) == 1, playernametag = cookie.GetNumber("utility_playernametag", 0) == 1, playercursorline = cookie.GetNumber("utility_playercursorline", 0) == 1, playerbones = cookie.GetNumber("utility_playerbones", 0) == 1, npcbones = cookie.GetNumber("utility_npcbones", 0) == 1}
+	local actList = {"dance", "robot", "muscle", "zombie", "agree", "disagree", "cheer", "wave", "laugh", "forward", "group", "halt", "salute", "becon", "bow"}
+	local freecamtoggle, freecamPos, freecamAng, frozenPlayerViewAng = false, Vector(0, 0, 0), Angle(0, 0, 0), Angle(0, 0, 0)
 	local colors = {prop = Color(0, 255, 255), npc = Color(255, 0, 0), player = Color(255, 255, 0)}
-	local freecamSettings = {sensitivity = 1.75, speed = 10, fastSpeed = 25, acceleration = 0}
-	local utilityMenu = nil
+	local freecamSettings = {sensitivity = 1.75, speed = 10, fastSpeed = 25}
+	local utilityMenu, ply = nil, LocalPlayer()
 
 	-- #$%#$% FUNCTIONS #$%#$%
 
-	local function drawBox(ent, color, ang)
+	local function box(ent, color, ang)
 		cam.IgnoreZ(true)
 		render.DrawWireframeBox(ent:GetPos(), ang or ent:GetAngles(), ent:OBBMins(), ent:OBBMaxs(), color, true)
 		cam.IgnoreZ(false)
 	end
 
-	local function drawNametag(ent, name, color)
+	local function nametag(ent, name, color)
 		local pos = ent:EyePos():ToScreen()
 		draw.SimpleText(name, "BudgetLabel", pos.x, pos.y, color, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 	end
 
-	local function drawCursorLines(entities, color)
-		local ply = LocalPlayer()
+	local function cursorline(entities, color)
 		local dir = gui.ScreenToVector(ScrW() / 2, ScrH() / 2)
 		local startPos = ply:EyePos() + dir * 100
 		for _, ent in ipairs(entities) do
@@ -31,14 +31,14 @@ if CLIENT then
 		end
 	end
 
-	local function drawPlayerBones(ply, color)
-		local origin = ply:GetPos()
-		local bones = ply:GetBoneCount()
+	local function drawBones(ent, color)
+		local origin = ent:GetPos()
+		local bones = ent:GetBoneCount()
 		for i = 0, bones - 1 do
-			local bonePos1 = ply:GetBonePosition(i)
-			local parent = ply:GetBoneParent(i)
+			local bonePos1 = ent:GetBonePosition(i)
+			local parent = ent:GetBoneParent(i)
 			if parent ~= -1 then
-				local bonePos2 = ply:GetBonePosition(parent)
+				local bonePos2 = ent:GetBonePosition(parent)
 				if bonePos1 and bonePos2 and bonePos1:Distance(origin) > 1 and bonePos2:Distance(origin) > 1 then
 					cam.IgnoreZ(true)
 					render.DrawLine(bonePos1, bonePos2, color, true)
@@ -48,167 +48,150 @@ if CLIENT then
 		end
 	end
 
-	local function drawNPCBones(npc, color)
-		local origin = npc:GetPos()
-		local bones = npc:GetBoneCount()
-		for i = 0, bones - 1 do
-			local bonePos1 = npc:GetBonePosition(i)
-			local parent = npc:GetBoneParent(i)
-			if parent ~= -1 then
-				local bonePos2 = npc:GetBonePosition(parent)
-				if bonePos1 and bonePos2 and bonePos1:Distance(origin) > 1 and bonePos2:Distance(origin) > 1 then
-					cam.IgnoreZ(true)
-					render.DrawLine(bonePos1, bonePos2, color, true)
-					cam.IgnoreZ(false)
-				end
-			end
-		end
-	end
-
-	local function EnableFreecam()
-		local ply = LocalPlayer()
-		freecamEnabled = true
+	local function enablefreecam()
+		freecamtoggle = true
 		freecamPos, freecamAng = ply:EyePos(), ply:EyeAngles()
 		frozenPlayerViewAng = ply:EyeAngles()
-		ply:SetMoveType(MOVETYPE_NONE)
-		ply:SetVelocity(vector_origin)
-		if ply.DrawViewModel then ply:DrawViewModel(false) end
-		input.SetCursorPos(ScrW()/2, ScrH()/2)
 		hook.Add("CalcView", "FreecamView", function(_,_,_,fov)
 			return {origin = freecamPos, angles = freecamAng, fov = fov, drawviewer = true}
 		end)
 	end
 
-	local function DisableFreecam()
-		local ply = LocalPlayer()
-		freecamEnabled = false
-		ply:SetMoveType(MOVETYPE_WALK)
-		if ply.DrawViewModel then ply:DrawViewModel(true) end
+	local function disablefreecam()
+		freecamtoggle = false
 		hook.Remove("CalcView", "FreecamView")
+	end
+	
+	local function getsettings()
+		return {autobhop = cookie.GetNumber("utility_autobhop", 0) == 1, propbox = cookie.GetNumber("utility_propbox", 0) == 1, npcbox = cookie.GetNumber("utility_npcbox", 0) == 1, playerbox = cookie.GetNumber("utility_playerbox", 0) == 1, speedometer = cookie.GetNumber("utility_speedometer", 0) == 1, npcnametag = cookie.GetNumber("utility_npcnametag", 0) == 1, npccursorline = cookie.GetNumber("utility_npccursorline", 0) == 1, playernametag = cookie.GetNumber("utility_playernametag", 0) == 1, playercursorline = cookie.GetNumber("utility_playercursorline", 0) == 1, playerbones = cookie.GetNumber("utility_playerbones", 0) == 1, npcbones = cookie.GetNumber("utility_npcbones", 0) == 1}
 	end
 
 	-- #$%#$% HOOKS #$%#$%
 
-	hook.Add("CreateMove", "autobhop", function(cmd)
-		if settings.autobhop then
-			local ply = LocalPlayer()
-			local onGround = ply:OnGround()
-			local inNoClip = ply:GetMoveType() == MOVETYPE_NOCLIP
-			local inWater = ply:WaterLevel() >= 2
-			if cmd:KeyDown(IN_JUMP) then
-				if onGround or inNoClip or inWater then
-					cmd:SetButtons(bit.bor(cmd:GetButtons(), IN_JUMP))
-				else
-					cmd:SetButtons(bit.band(cmd:GetButtons(), bit.bnot(IN_JUMP)))
-				end
+	hook.Add("CreateMove", "bhop and freecam", function(cmd)
+		if getsettings().autobhop then
+			if cmd:KeyDown(IN_JUMP) and not (ply:IsOnGround() or ply:WaterLevel() > 1 or ply:GetMoveType() == MOVETYPE_NOCLIP) then
+				cmd:RemoveKey(IN_JUMP)
 			end
+		end
+		if freecamtoggle and not vgui.GetKeyboardFocus() and not gui.IsGameUIVisible() then
+			local mouseX = cmd:GetMouseX()
+			local mouseY = cmd:GetMouseY()
+			local speed = (input.IsKeyDown(KEY_LSHIFT) and freecamSettings.fastSpeed or freecamSettings.speed)
+			local wishMove = Vector()
+			freecamAng.p = math.Clamp(freecamAng.p + mouseY * freecamSettings.sensitivity * 0.01, -89, 89)
+			freecamAng.y = freecamAng.y - mouseX * freecamSettings.sensitivity * 0.01
+			freecamAng.r = 0
+			if input.IsKeyDown(KEY_W) then wishMove = wishMove + freecamAng:Forward() end
+			if input.IsKeyDown(KEY_S) then wishMove = wishMove - freecamAng:Forward() end
+			if input.IsKeyDown(KEY_D) then wishMove = wishMove + freecamAng:Right() end
+			if input.IsKeyDown(KEY_A) then wishMove = wishMove - freecamAng:Right() end
+			if input.IsKeyDown(KEY_SPACE) then wishMove = wishMove + freecamAng:Up() end
+			if input.IsKeyDown(KEY_LCONTROL) then wishMove = wishMove - freecamAng:Up() end
+			if wishMove:LengthSqr() > 0 then
+				wishMove:Normalize()
+				freecamPos = freecamPos + wishMove * speed
+			end
+			cmd:ClearButtons()
+			cmd:ClearMovement()
+			cmd:SetViewAngles(frozenPlayerViewAng)
 		end
 	end)
 
 	hook.Add("HUDPaint", "speedometer", function()
-		if settings.speedometer then
-			local ply = LocalPlayer()
+		if getsettings().speedometer then
 			local speed = math.Round(ply:GetVelocity():Length())
-			if not ply:Alive() then return end
-			draw.SimpleText("Speed: " .. speed .. " u/s", "BudgetLabel", ScrW() / 2 - 45, ScrH() / 2 + 75, colors.player, TEXT_ALIGN_LEFT)
+			if ply:Alive() then
+				draw.SimpleText("Speed: " .. speed .. " u/s", "BudgetLabel", ScrW() / 2 - 45, ScrH() / 2 + 75, colors.player, TEXT_ALIGN_LEFT)
+			end
 		end
 	end)
 
 	hook.Add("PostDrawOpaqueRenderables", "box", function()
-		if settings.propbox then
+		if getsettings().propbox then
 			for _, ent in ipairs(ents.FindByClass("prop_*")) do
-				drawBox(ent, colors.prop)
+				box(ent, colors.prop)
 			end
 		end
-		if settings.npcbox then
+		if getsettings().npcbox then
 			for _, npc in ipairs(ents.FindByClass("npc_*")) do
 				if npc:Alive() then
-					drawBox(npc, colors.npc, Angle(0, 0, 0))
+					box(npc, colors.npc, Angle(0, 0, 0))
 				end
 			end
 		end
-		if settings.playerbox then
+		if getsettings().playerbox then
 			for _, ply in ipairs(player.GetAll()) do
 				if ply ~= LocalPlayer() and ply:Alive() then
-					drawBox(ply, colors.player, Angle(0, 0, 0))
+					box(ply, colors.player, Angle(0, 0, 0))
 				end
 			end
 		end
 	end)
 
 	hook.Add("HUDPaint", "nametag", function()
-		if settings.npcnametag then
+		if getsettings().npcnametag then
 			for _, npc in ipairs(ents.FindByClass("npc_*")) do
 				if npc:Alive() then
-					drawNametag(npc, npc.PrintName or npc:GetClass(), colors.npc)
+					nametag(npc, npc.PrintName or npc:GetClass(), colors.npc)
 				end
 			end
 		end
-		if settings.playernametag then
-			local ply = LocalPlayer()
-			for _, p in ipairs(player.GetAll()) do
-				if p ~= ply and p:Alive() then
-					drawNametag(p, p:Nick(), colors.player)
+		if getsettings().playernametag then
+			for _, ply in ipairs(player.GetAll()) do
+				if ply ~= LocalPlayer() and ply:Alive() then
+					nametag(ply, ply:Nick(), colors.player)
 				end
 			end
 		end
 	end)
 
 	hook.Add("PostDrawTranslucentRenderables", "cursorline", function()
-		local ply = LocalPlayer()
-		if not ply:Alive() or ply:ShouldDrawLocalPlayer() then return end
-		if settings.npccursorline then
-			local npcs = {}
-			for _, npc in ipairs(ents.FindByClass("npc_*")) do
-				if npc:Alive() then
-					table.insert(npcs, npc)
+		if ply:Alive() and not ply:ShouldDrawLocalPlayer() then
+			if getsettings().npccursorline then
+				local npcs = {}
+				for _, npc in ipairs(ents.FindByClass("npc_*")) do
+					if npc:Alive() then
+						table.insert(npcs, npc)
+					end
 				end
+				cursorline(npcs, colors.npc)
 			end
-			drawCursorLines(npcs, colors.npc)
-		end
-		if settings.playercursorline then
-			local players = {}
-			for _, p in ipairs(player.GetAll()) do
-				if p ~= ply and p:Alive() then
-					table.insert(players, p)
+			if getsettings().playercursorline then
+				local players = {}
+				for _, ply in ipairs(player.GetAll()) do
+					if ply ~= LocalPlayer() and ply:Alive() then
+						table.insert(players, ply)
+					end
 				end
-			end
-			drawCursorLines(players, colors.player)
-		end
-	end)
-
-	hook.Add("PostDrawTranslucentRenderables", "npcbones", function()
-		if settings.npcbones then
-			for _, npc in ipairs(ents.FindByClass("npc_*")) do
-				if npc:Alive() then
-					drawNPCBones(npc, colors.npc)
-				end
+				cursorline(players, colors.player)
 			end
 		end
 	end)
 
-	hook.Add("CreateMove", "freecammove", function(cmd)
-		if not freecamEnabled or vgui.GetKeyboardFocus() then return end
-		local mouseX = cmd:GetMouseX()
-		local mouseY = cmd:GetMouseY()
-		local speed = (input.IsKeyDown(KEY_LSHIFT) and freecamSettings.fastSpeed or freecamSettings.speed)
-		local wishMove = Vector()
-		freecamAng.p = math.Clamp(freecamAng.p + mouseY * freecamSettings.sensitivity * 0.01, -89, 89)
-		freecamAng.y = freecamAng.y - mouseX * freecamSettings.sensitivity * 0.01
-		freecamAng.r = 0
-		if input.IsKeyDown(KEY_W) then wishMove = wishMove + freecamAng:Forward() end
-		if input.IsKeyDown(KEY_S) then wishMove = wishMove - freecamAng:Forward() end
-		if input.IsKeyDown(KEY_D) then wishMove = wishMove + freecamAng:Right() end
-		if input.IsKeyDown(KEY_A) then wishMove = wishMove - freecamAng:Right() end
-		if input.IsKeyDown(KEY_SPACE) then wishMove = wishMove + freecamAng:Up() end
-		if input.IsKeyDown(KEY_LCONTROL) then wishMove = wishMove - freecamAng:Up() end
-		if wishMove:LengthSqr() > 0 then
-			wishMove:Normalize()
-			freecamPos = freecamPos + wishMove * speed
+	hook.Add("PostDrawTranslucentRenderables", "bones", function()
+		if getsettings().npcbones then
+			for _, npc in ipairs(ents.FindByClass("npc_*")) do
+				if npc:Alive() then
+					drawBones(npc, colors.npc)
+				end
+			end
 		end
-		cmd:ClearButtons()
-		cmd:ClearMovement()
-		cmd:SetViewAngles(frozenPlayerViewAng)
+		if getsettings().playerbones then
+			for _, ply in ipairs(player.GetAll()) do
+				if ply ~= LocalPlayer() and ply:Alive() then
+					drawBones(ply, colors.player)
+				end
+			end
+		end
+	end)
+
+	hook.Add("PlayerBindPress", "freecamblockkeys", function(ply, bind, pressed)
+		if freecamtoggle then
+			if string.find(bind, "noclip") or string.find(bind, "impulse 100") or string.find(bind, "impulse 201") then
+				return true
+			end
+		end
 	end)
 
 	-- #$%#$% MENU #$%#$%
@@ -229,12 +212,11 @@ if CLIENT then
 		checkbox:SetText(text)
 		checkbox:SetFont("DermaDefault")
 		checkbox:SetTextColor(color_white)
-		checkbox:SetValue(settings[settingKey] and 1 or 0)
+		checkbox:SetValue(cookie.GetNumber("utility_" .. settingKey, 0))
 		checkbox:SizeToContents()
 		checkbox:Dock(TOP)
 		checkbox:DockMargin(5, 5, 5, 0)
 		checkbox.OnChange = function(_, val)
-			settings[settingKey] = val
 			cookie.Set("utility_" .. settingKey, val and "1" or "0")
 		end
 		return checkbox
@@ -245,6 +227,7 @@ if CLIENT then
 		local tab = vgui.Create("DPropertySheet", frame)
 		local scrollUtility = vgui.Create("DScrollPanel", tab)
 		local scrollDisplay = vgui.Create("DScrollPanel", tab)
+		local scrollAct = vgui.Create("DScrollPanel", tab)
 
 		frame.OnClose = function(self)
 			gui.EnableScreenClicker(false)
@@ -274,9 +257,25 @@ if CLIENT then
 		createCheckbox("Player Bones", scrollDisplay, "playerbones")
 		createCheckbox("Player Nametag", scrollDisplay, "playernametag")
 		createCheckbox("Player Cursor Line", scrollDisplay, "playercursorline")
+		createLabel("Player Gestures:", scrollAct)
+
+		local grid = vgui.Create("DIconLayout", scrollAct)
+		grid:Dock(TOP)
+		grid:SetSpaceX(5)
+		grid:SetSpaceY(5)
+		grid:DockMargin(5, 5, 5, 0)
+		for _, act in ipairs(actList) do
+			local button = grid:Add("DButton")
+			button:SetText(act:sub(1,1):upper() .. act:sub(2))
+			button:SetSize(60, 30)
+			button.DoClick = function()
+				RunConsoleCommand("act", act)
+			end
+		end
 
 		tab:AddSheet("Utility", scrollUtility, "icon16/wrench.png")
 		tab:AddSheet("Display", scrollDisplay, "icon16/monitor.png")
+		tab:AddSheet("Act", scrollAct, "icon16/user.png")
 
 		return frame
 	end
@@ -295,10 +294,10 @@ if CLIENT then
 	end)
 
 	concommand.Add("toggle_freecam", function()
-		if freecamEnabled then
-			DisableFreecam()
+		if freecamtoggle then
+			disablefreecam()
 		else
-			EnableFreecam()
+			enablefreecam()
 		end
 	end)
 end
