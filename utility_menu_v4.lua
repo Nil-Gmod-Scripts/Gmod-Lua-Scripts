@@ -75,11 +75,7 @@ if CLIENT then
 			playernametag = cookie.GetNumber("utility_playernametag", 0) == 1,
 			playercursorline = cookie.GetNumber("utility_playercursorline", 0) == 1,
 			playerbones = cookie.GetNumber("utility_playerbones", 0) == 1,
-			npcbones = cookie.GetNumber("utility_npcbones", 0) == 1,
-			npchighlight = cookie.GetNumber("utility_npchighlight", 0) == 1,
-			prophighlight = cookie.GetNumber("utility_prophighlight", 0) == 1,
-			playerhighlight = cookie.GetNumber("utility_playerhighlight", 0) == 1,
-			highlight_opacity = cookie.GetNumber("utility_highlight_opacity", 100)
+			npcbones = cookie.GetNumber("utility_npcbones", 0) == 1
 		}
 	end
 
@@ -237,45 +233,6 @@ if CLIENT then
 		end
 	end)
 
-	local highlightMat = CreateMaterial("HighlightMat", "UnlitGeneric", {
-		["$basetexture"] = "models/debug/debugwhite",
-		["$ignorez"] = "1",
-		["$model"] = "1",
-		["$nocull"] = "1",
-		["$translucent"] = "1"
-	})
-
-	hook.Add("PostDrawOpaqueRenderables", "DrawHighlightedEntities", function()
-		local colors = getColors()
-		local settings = getsettings()
-		for _, ent in ipairs(ents.GetAll()) do
-			if not IsValid(ent) or ent == LocalPlayer() then continue end
-			if not ent.DrawModel then continue end
-			local class = ent:GetClass()
-			local color = nil
-			local alpha = settings.highlight_opacity
-			if settings.npchighlight and string.find(class, "npc_") then
-				color = Color(colors.npc.r, colors.npc.g, colors.npc.b, alpha)
-			elseif settings.playerhighlight and ent:IsPlayer() then
-				color = Color(colors.player.r, colors.player.g, colors.player.b, alpha)
-			elseif settings.prophighlight and string.find(class, "prop_") then
-				color = Color(colors.prop.r, colors.prop.g, colors.prop.b, alpha)
-			end
-			if color then
-				cam.IgnoreZ(true)
-				render.SetColorModulation(color.r / 255, color.g / 255, color.b / 255)
-				render.SetBlend(color.a / 255)
-				render.MaterialOverride(highlightMat)
-				ent:DrawModel()
-				render.MaterialOverride()
-				render.SetColorModulation(1, 1, 1)
-				render.SetBlend(1)
-				cam.IgnoreZ(false)
-				ent:SetNoDraw(true)
-			end
-		end
-	end)
-
 	-- #$%#$% MENU #$%#$%
 
 	local function createlabel(text, parent)
@@ -332,7 +289,7 @@ if CLIENT then
 		frame.OnClose = function(self)
 			gui.EnableScreenClicker(false)
 		end
-		frame:SetSize(301, 425)
+		frame:SetSize(301, 400)
 		frame:Center()
 		frame:SetTitle("Utility Menu")
 		frame:SetDeleteOnClose(false)
@@ -345,17 +302,14 @@ if CLIENT then
 		createcheckbox("Speedometer", scrolldisplay, "speedometer")
 		createlabel("Prop Options:", scrolldisplay)
 		createcheckbox("Prop Box", scrolldisplay, "propbox")
-		createcheckbox("Prop Highlight", scrolldisplay, "prophighlight")
 		createlabel("NPC Options:", scrolldisplay)
 		createcheckbox("NPC Box", scrolldisplay, "npcbox")
 		createcheckbox("NPC Bones", scrolldisplay, "npcbones")
-		createcheckbox("NPC Highlight", scrolldisplay, "npchighlight")
 		createcheckbox("NPC Nametag", scrolldisplay, "npcnametag")
 		createcheckbox("NPC Cursor Line", scrolldisplay, "npccursorline")
 		createlabel("Player Options:", scrolldisplay)
 		createcheckbox("Player Box", scrolldisplay, "playerbox")
 		createcheckbox("Player Bones", scrolldisplay, "playerbones")
-		createcheckbox("Player Highlight", scrolldisplay, "playerhighlight")
 		createcheckbox("Player Nametag", scrolldisplay, "playernametag")
 		createcheckbox("Player Cursor Line", scrolldisplay, "playercursorline")
 		createlabel("Player Gestures:", scrollact)
@@ -373,8 +327,6 @@ if CLIENT then
 				RunConsoleCommand("act", act)
 			end
 		end
-		createlabel("Highlight Opacity:", scrollsettings)
-		createSlider("Highlight Opacity", scrollsettings, "highlight_opacity", 0, 255, 100)
 		createlabel("Prop Colors:", scrollsettings)
 		createSlider("Red", scrollsettings, "prop_r", 0, 255, 0)
 		createSlider("Green", scrollsettings, "prop_g", 0, 255, 255)
