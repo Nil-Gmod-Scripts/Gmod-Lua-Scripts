@@ -43,6 +43,30 @@ hook.Add("PostDrawOpaqueRenderables", "DrawEntityBoxes", function()
 	end
 end)
 
+hook.Add("PostDrawTranslucentRenderables", "DrawCursorLines", function()
+	local allents = ents.GetAll()
+	local ply = LocalPlayer()
+	local eyepos = ply:EyePos()
+	local aimvec = ply:GetAimVector()
+	local startpos = eyepos + aimvec * 50
+	if settings.npccursorline then
+		for _, ent in ipairs(allents) do
+			if ent:IsNPC() and ent:Alive() then
+				local endPos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
+				render.DrawLine(startpos, endPos, Color(255, 0, 0), false)
+			end
+		end
+	end
+	if settings.playercursorline then 
+		for _, ent in ipairs(allents) do
+			if ent:IsPlayer() and ent:Alive() and ent ~= ply then
+				local endPos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
+				render.DrawLine(startpos, endPos, Color(255, 255, 0), false)
+			end
+		end
+	end
+end)
+
 hook.Add("HUDPaint", "DrawNametags", function()
 	local allents = ents.GetAll()
 	local ply = LocalPlayer()
@@ -76,30 +100,6 @@ hook.Add("CreateMove", "AutoBhop", function(cmd)
 	local ply = LocalPlayer()
 	if settings.autobhop and cmd:KeyDown(IN_JUMP) and not ply:IsOnGround() and ply:WaterLevel() <= 1 and ply:GetMoveType() ~= MOVETYPE_NOCLIP then
 		cmd:RemoveKey(IN_JUMP)
-	end
-end)
-
-hook.Add("PostDrawTranslucentRenderables", "DrawCursorLines", function()
-	local allents = ents.GetAll()
-	local ply = LocalPlayer()
-	local eyepos = ply:EyePos()
-	local aimvec = ply:GetAimVector()
-	local startpos = eyepos + aimvec * 50
-	if settings.npccursorline then
-		for _, ent in ipairs(allents) do
-			if ent:IsNPC() and ent:Alive() then
-				local endPos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
-				render.DrawLine(startpos, endPos, Color(255, 0, 0), false)
-			end
-		end
-	end
-	if settings.playercursorline then 
-		for _, ent in ipairs(allents) do
-			if ent:IsPlayer() and ent:Alive() and ent ~= ply then
-				local endPos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
-				render.DrawLine(startpos, endPos, Color(255, 255, 0), false)
-			end
-		end
 	end
 end)
 
