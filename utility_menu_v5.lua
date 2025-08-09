@@ -1,90 +1,23 @@
-
--- #$%#$% SETTINGS #$%#$%
-
 if not istable(settings) then
 	settings = {
-		propbox = false,
-		npcbox = false,
-		playerbox = false,
-		npcnametag = false,
-		playernametag = false,
-		speedometer = false,
-		autobhop = false,
-		npccursorline = false,
-		playercursorline = false
+		autobhop = false, speedometer = false, propbox = false, npcbox = false, npcbone = false, npcnametag = false,
+		npchealth = false, npccursorline = false, playerbox = false, playerbone = false, playernametag = false,
+		playerhealth = false, playercursorline = false, entitybox = false, entitynametag = false, entitycursorline = false,
+		allfilter = ""
 	}
 end
 
--- #$%#$% HOOKS #$%#$%
+if not istable(actlist) then
+	actList = {
+		"agree", "becon", "bow", "cheer", "dance", "disagree", "forward",
+		"group", "halt", "laugh", "muscle", "robot", "salute", "wave", "zombie"
+	}
+end
 
-hook.Add("PostDrawOpaqueRenderables", "DrawEntityBoxes", function()
-	local allents = ents.GetAll()
+hook.Add("CreateMove", "AutoBhop", function(cmd)
 	local ply = LocalPlayer()
-	if settings.propbox then
-		for _, ent in ipairs(allents) do
-			if ent:GetClass():find("prop_physics") or ent:GetClass():find("prop_dynamic") then
-				render.DrawWireframeBox(ent:GetPos(), ent:GetAngles(), ent:OBBMins(), ent:OBBMaxs(), Color(0, 255, 255), false)
-			end
-		end
-	end
-	if settings.npcbox then
-		for _, ent in ipairs(allents) do
-			if ent:IsNPC() and ent:Alive() then
-				render.DrawWireframeBox(ent:GetPos(), Angle(0, 0, 0), ent:OBBMins(), ent:OBBMaxs(), Color(255, 0, 0), false)
-			end
-		end
-	end
-	if settings.playerbox then
-		for _, ent in ipairs(allents) do
-			if ent:IsPlayer() and ent ~= ply and ent:Alive() then
-				render.DrawWireframeBox(ent:GetPos(), Angle(0, 0, 0), ent:OBBMins(), ent:OBBMaxs(), Color(255, 255, 0), false)
-			end
-		end
-	end
-end)
-
-hook.Add("PostDrawTranslucentRenderables", "DrawCursorLines", function()
-	local allents = ents.GetAll()
-	local ply = LocalPlayer()
-	local eyepos = ply:EyePos()
-	local aimvec = ply:GetAimVector()
-	local startpos = eyepos + aimvec * 50
-	if settings.npccursorline then
-		for _, ent in ipairs(allents) do
-			if ent:IsNPC() and ent:Alive() then
-				local endPos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
-				render.DrawLine(startpos, endPos, Color(255, 0, 0), false)
-			end
-		end
-	end
-	if settings.playercursorline then 
-		for _, ent in ipairs(allents) do
-			if ent:IsPlayer() and ent:Alive() and ent ~= ply then
-				local endPos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
-				render.DrawLine(startpos, endPos, Color(255, 255, 0), false)
-			end
-		end
-	end
-end)
-
-hook.Add("HUDPaint", "DrawNametags", function()
-	local allents = ents.GetAll()
-	local ply = LocalPlayer()
-	if settings.npcnametag then
-		for _, ent in ipairs(allents) do
-			if ent:IsNPC() and ent:Alive() then
-				local pos = ent:EyePos():ToScreen()
-				draw.SimpleText(ent:GetClass(), "BudgetLabel", pos.x, pos.y, Color(255, 0, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
-			end
-		end
-	end
-	if settings.playernametag then
-		for _, ent in ipairs(allents) do
-			if ent:IsPlayer() and ent ~= ply and ent:Alive() then
-				local pos = ent:EyePos():ToScreen()
-				draw.SimpleText(ent:Nick(), "BudgetLabel", pos.x, pos.y, Color(255, 255, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
-			end
-		end
+	if settings.autobhop and cmd:KeyDown(IN_JUMP) and not ply:IsOnGround() and ply:WaterLevel() <= 1 and ply:GetMoveType() ~= MOVETYPE_NOCLIP then
+		cmd:RemoveKey(IN_JUMP)
 	end
 end)
 
@@ -96,14 +29,122 @@ hook.Add("HUDPaint", "DrawSpeedometer", function()
 	end
 end)
 
-hook.Add("CreateMove", "AutoBhop", function(cmd)
-	local ply = LocalPlayer()
-	if settings.autobhop and cmd:KeyDown(IN_JUMP) and not ply:IsOnGround() and ply:WaterLevel() <= 1 and ply:GetMoveType() ~= MOVETYPE_NOCLIP then
-		cmd:RemoveKey(IN_JUMP)
-	end
+hook.Add("PostDrawOpaqueRenderables", "DrawEntityVisuals", function()
+    local ply = LocalPlayer()
+    local allents = ents.GetAll()
+    local filter = (settings.allfilter or ""):lower()
+    local enableBoxes = settings.entitybox or settings.propbox or settings.npcbox or settings.playerbox
+    local enableBones = settings.npcbone or settings.playerbone
+    if not (enableBoxes or enableBones) then return end
+    for _, ent in ipairs(allents) do
+        if not IsValid(ent) then continue end
+        local class = ent:GetClass():lower()
+        local pos = ent:GetPos()
+        local ang = ent:GetAngles()
+        local obbMins, obbMaxs = ent:OBBMins(), ent:OBBMaxs()
+		cam.IgnoreZ(true)
+        if enableBoxes then
+            if settings.entitybox and (filter == "" or class:find(filter)) then
+                render.DrawWireframeBox(pos, ang, obbMins, obbMaxs, Color(255, 255, 255))
+            end
+            if settings.propbox and (class:find("prop_physics") or class:find("prop_dynamic")) then
+                render.DrawWireframeBox(pos, ang, obbMins, obbMaxs, Color(0, 255, 255))
+            end
+            if settings.npcbox and ent:IsNPC() and ent:Alive() then
+                render.DrawWireframeBox(pos, Angle(0, 0, 0), obbMins, obbMaxs, Color(255, 0, 0))
+            end
+            if settings.playerbox and ent:IsPlayer() and ent ~= ply and ent:Alive() then
+                render.DrawWireframeBox(pos, Angle(0, 0, 0), obbMins, obbMaxs, Color(255, 255, 0))
+            end
+        end
+        if enableBones then
+            local bones = ent:GetBoneCount()
+            if bones and bones > 0 then
+                local origin = pos
+                for i = 0, bones - 1 do
+                    local parent = ent:GetBoneParent(i)
+                    if parent ~= -1 then
+                        local bonePos1 = ent:GetBonePosition(i)
+                        local bonePos2 = ent:GetBonePosition(parent)
+                        if bonePos1 and bonePos2 and bonePos1:DistToSqr(origin) > 1 and bonePos2:DistToSqr(origin) > 1 then
+                            if settings.npcbone and ent:IsNPC() and ent:Alive() then
+                                render.DrawLine(bonePos1, bonePos2, Color(255, 0, 0))
+                            elseif settings.playerbone and ent:IsPlayer() and ent:Alive() and ent ~= ply then
+                                render.DrawLine(bonePos1, bonePos2, Color(255, 255, 0))
+                            end
+                        end
+                    end
+                end
+            end
+        end
+		cam.IgnoreZ(false)
+    end
 end)
 
--- #$%#$% MENU #$%#$%
+hook.Add("HUDPaint", "DrawEntityInfo", function()
+    local ply = LocalPlayer()
+    local allents = ents.GetAll()
+    local filter = (settings.allfilter or ""):lower()
+    local showNPCHealth = settings.npchealth
+    local showPlayerHealth = settings.playerhealth
+    local showEntityNametag = settings.entitynametag
+    local showNPCNametag = settings.npcnametag
+    local showPlayerNametag = settings.playernametag
+    if not (showNPCHealth or showPlayerHealth or showEntityNametag or showNPCNametag or showPlayerNametag) then return end
+    local npcOffset = showNPCNametag and -10 or 0
+    local playerOffset = showPlayerNametag and -10 or 0
+    for _, ent in ipairs(allents) do
+        if not IsValid(ent) then continue end
+        local pos = ent:EyePos():ToScreen()
+        if showNPCHealth and ent:IsNPC() and ent:Alive() then
+            draw.SimpleText("HP: " .. ent:Health(), "BudgetLabel", pos.x, pos.y + npcOffset, Color(255, 0, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+        end
+        if showPlayerHealth and ent:IsPlayer() and ent ~= ply and ent:Alive() then
+            draw.SimpleText("HP: " .. ent:Health(), "BudgetLabel", pos.x, pos.y + playerOffset, Color(255, 255, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+        end
+        if showEntityNametag then
+            local class = ent:GetClass():lower()
+            if filter == "" or class:find(filter) then
+                draw.SimpleText(ent:GetClass(), "BudgetLabel", pos.x, pos.y, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+            end
+        end
+        if showNPCNametag and ent:IsNPC() and ent:Alive() then
+            draw.SimpleText(ent:GetClass(), "BudgetLabel", pos.x, pos.y, Color(255, 0, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+        end
+        if showPlayerNametag and ent:IsPlayer() and ent ~= ply and ent:Alive() then
+            draw.SimpleText(ent:Nick(), "BudgetLabel", pos.x, pos.y, Color(255, 255, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+        end
+    end
+end)
+
+hook.Add("PostDrawTranslucentRenderables", "DrawCursorLines", function()
+    local ply = LocalPlayer()
+    local allents = ents.GetAll()
+    local eyepos = ply:EyePos()
+    local aimvec = ply:GetAimVector()
+    local startpos = eyepos + aimvec * 50
+    local filter = (settings.allfilter or ""):lower()
+    local showEntityCursor = settings.entitycursorline
+    local showNPCCursor = settings.npccursorline
+    local showPlayerCursor = settings.playercursorline
+    if not (showEntityCursor or showNPCCursor or showPlayerCursor) then return end
+	cam.IgnoreZ(true)
+    for _, ent in ipairs(allents) do
+        if not IsValid(ent) then continue end
+        local class = ent:GetClass():lower()
+        local endPos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
+        if showEntityCursor and (filter == "" or class:find(filter)) then
+            render.DrawLine(startpos, endPos, Color(255, 255, 255))
+        end
+        if showNPCCursor and ent:IsNPC() and ent:Alive() then
+            render.DrawLine(startpos, endPos, Color(255, 0, 0))
+        end
+        if showPlayerCursor and ent:IsPlayer() and ent:Alive() and ent ~= ply then
+            render.DrawLine(startpos, endPos, Color(255, 255, 0))
+        end
+    end
+	cam.IgnoreZ(false)
+end)
 
 local function createlabel(text, parent)
 	local label = vgui.Create("DLabel", parent)
@@ -139,36 +180,61 @@ local function createmenu()
 	frame:SetTitle("Utility Menu")
 	frame:SetDeleteOnClose(false)
 	frame:SetVisible(false)
-	frame.OnClose = function(self) gui.EnableScreenClicker(false) end
 	tab:Dock(FILL)
 	tab:SetFadeTime(0)
 	tab:AddSheet("Utility", scrollutility, "icon16/wrench.png")
 	tab:AddSheet("Display", scrolldisplay, "icon16/monitor.png")
 	createlabel("Miscellaneous Options:", scrollutility)
 	createcheckbox("Auto Bhop", scrollutility, "autobhop")
+	createlabel("Player Gestures:", scrollutility)
+	local grid = vgui.Create("DIconLayout", scrollutility)
+	grid:Dock(TOP)
+	grid:SetSpaceX(5)
+	grid:SetSpaceY(5)
+	grid:CenterHorizontal()
+	grid:DockMargin(9, 5, 0, 0)
+	for _, act in ipairs(actList) do
+		local button = grid:Add("DButton")
+		button:SetText(act:sub(1,1):upper() .. act:sub(2):lower())
+		button:SetSize(60, 30)
+		button.DoClick = function()
+			RunConsoleCommand("act", act)
+		end
+	end
 	createlabel("Miscellaneous Options:", scrolldisplay)
 	createcheckbox("Speedometer", scrolldisplay, "speedometer")
-	createcheckbox("Prop Box", scrolldisplay, "propbox")
+	createcheckbox("Prop Boxes", scrolldisplay, "propbox")
 	createlabel("NPC Options:", scrolldisplay)
-	createcheckbox("NPC Box", scrolldisplay, "npcbox")
-	createcheckbox("NPC Nametag", scrolldisplay, "npcnametag")
-	createcheckbox("NPC Cursor Line", scrolldisplay, "npccursorline")
+	createcheckbox("NPC Boxes", scrolldisplay, "npcbox")
+	createcheckbox("NPC Bones", scrolldisplay, "npcbone")
+	createcheckbox("NPC Health", scrolldisplay, "npchealth")
+	createcheckbox("NPC Nametags", scrolldisplay, "npcnametag")
+	createcheckbox("NPC Cursor Lines", scrolldisplay, "npccursorline")
 	createlabel("Player Options:", scrolldisplay)
-	createcheckbox("Player Box", scrolldisplay, "playerbox")
-	createcheckbox("Player Nametag", scrolldisplay, "playernametag")
-	createcheckbox("Player Cursor Line", scrolldisplay, "playercursorline")
+	createcheckbox("Player Boxes", scrolldisplay, "playerbox")
+	createcheckbox("Player Bones", scrolldisplay, "playerbone")
+	createcheckbox("Player Health", scrolldisplay, "playerhealth")
+	createcheckbox("Player Nametags", scrolldisplay, "playernametag")
+	createcheckbox("Player Cursor Lines", scrolldisplay, "playercursorline")
+	createlabel("Entity Options:", scrolldisplay)
+	createcheckbox("Entity Boxes", scrolldisplay, "entitybox")
+	createcheckbox("Entity Nametags", scrolldisplay, "entitynametag")
+	createcheckbox("Entity Cursor Lines", scrolldisplay, "entitycursorline")
+	local searchbox = vgui.Create("DTextEntry", scrolldisplay)
+	searchbox:Dock(TOP)
+	searchbox:DockMargin(5, 5, 5, 0)
+	searchbox:SetPlaceholderText("Filter entities by class (e.g. npc_, prop_)")
+	searchbox.OnChange = function(self) settings.allfilter = self:GetValue() or "" end
 	return frame
 end
-
--- #$%#$% COMMANDS #$%#$%
 
 concommand.Add("open_utility_menu", function()
 	if IsValid(utilitymenu) then
 		utilitymenu:SetVisible(true)
-		gui.EnableScreenClicker(true)
+		utilitymenu:MakePopup()
 	else
 		utilitymenu = createmenu()
 		utilitymenu:SetVisible(true)
-		gui.EnableScreenClicker(true)
+		utilitymenu:MakePopup()
 	end
 end)
