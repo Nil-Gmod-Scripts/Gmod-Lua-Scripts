@@ -8,7 +8,7 @@ if not istable(settings) then
 end
 
 if not istable(actlist) then
-	actList = {
+	actlist = {
 		"agree", "becon", "bow", "cheer", "dance", "disagree", "forward",
 		"group", "halt", "laugh", "muscle", "robot", "salute", "wave", "zombie"
 	}
@@ -36,13 +36,13 @@ hook.Add("PostDrawOpaqueRenderables", "DrawEntityVisuals", function()
     local enableBoxes = settings.entitybox or settings.propbox or settings.npcbox or settings.playerbox
     local enableBones = settings.npcbone or settings.playerbone
     if not (enableBoxes or enableBones) then return end
+	cam.IgnoreZ(true)
     for _, ent in ipairs(allents) do
         if not IsValid(ent) then continue end
         local class = ent:GetClass():lower()
         local pos = ent:GetPos()
         local ang = ent:GetAngles()
         local obbMins, obbMaxs = ent:OBBMins(), ent:OBBMaxs()
-		cam.IgnoreZ(true)
         if enableBoxes then
             if settings.entitybox and (filter == "" or class:find(filter)) then
                 render.DrawWireframeBox(pos, ang, obbMins, obbMaxs, Color(255, 255, 255))
@@ -77,8 +77,8 @@ hook.Add("PostDrawOpaqueRenderables", "DrawEntityVisuals", function()
                 end
             end
         end
-		cam.IgnoreZ(false)
     end
+	cam.IgnoreZ(false)
 end)
 
 hook.Add("HUDPaint", "DrawEntityInfo", function()
@@ -193,7 +193,7 @@ local function createmenu()
 	grid:SetSpaceY(5)
 	grid:CenterHorizontal()
 	grid:DockMargin(9, 5, 0, 0)
-	for _, act in ipairs(actList) do
+	for _, act in ipairs(actlist) do
 		local button = grid:Add("DButton")
 		button:SetText(act:sub(1,1):upper() .. act:sub(2):lower())
 		button:SetSize(60, 30)
