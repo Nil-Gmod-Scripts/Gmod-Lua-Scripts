@@ -73,15 +73,14 @@ hook.Add("PostDrawOpaqueRenderables", "DrawEntityVisuals", function()
 				local ang = ent:GetAngles()
 				local obbMins, obbMaxs = ent:OBBMins(), ent:OBBMaxs()
 				local bones = ent:GetBoneCount()
-				cam.IgnoreZ(true)
 				if settings.entitybox and (filter == "" or class:find(filter)) then
-					render.DrawWireframeBox(pos, ang, obbMins, obbMaxs, Color(255, 255, 255))
+					render.DrawWireframeBox(pos, ang, obbMins, obbMaxs, Color(255, 255, 255), false)
 				elseif settings.propbox and (class:find("prop_")) then
-					render.DrawWireframeBox(pos, ang, obbMins, obbMaxs, Color(0, 255, 255))
+					render.DrawWireframeBox(pos, ang, obbMins, obbMaxs, Color(0, 255, 255), false)
 				elseif settings.npcbox and ent:IsNPC() and ent:Alive() then
-					render.DrawWireframeBox(pos, Angle(0, 0, 0), obbMins, obbMaxs, Color(255, 0, 0))
+					render.DrawWireframeBox(pos, Angle(0, 0, 0), obbMins, obbMaxs, Color(255, 0, 0), false)
 				elseif settings.playerbox and ent:IsPlayer() and ent ~= ply and ent:Alive() then
-					render.DrawWireframeBox(pos, Angle(0, 0, 0), obbMins, obbMaxs, Color(255, 255, 0))
+					render.DrawWireframeBox(pos, Angle(0, 0, 0), obbMins, obbMaxs, Color(255, 255, 0), false)
 				elseif bones and bones > 0 then
 					local origin = pos
 					for i = 0, bones - 1 do
@@ -91,15 +90,14 @@ hook.Add("PostDrawOpaqueRenderables", "DrawEntityVisuals", function()
 							local bonePos2 = ent:GetBonePosition(parent)
 							if bonePos1 and bonePos2 and bonePos1:DistToSqr(origin) > 1 and bonePos2:DistToSqr(origin) > 1 then
 								if settings.npcbone and ent:IsNPC() and ent:Alive() then
-									render.DrawLine(bonePos1, bonePos2, Color(255, 0, 0))
+									render.DrawLine(bonePos1, bonePos2, Color(255, 0, 0), false)
 								elseif settings.playerbone and ent:IsPlayer() and ent:Alive() and ent ~= ply then
-									render.DrawLine(bonePos1, bonePos2, Color(255, 255, 0))
+									render.DrawLine(bonePos1, bonePos2, Color(255, 255, 0), false)
 								end
 							end
 						end
 					end
 				end
-				cam.IgnoreZ(false)
 			end
 		end
 	end
