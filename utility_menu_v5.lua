@@ -1,6 +1,6 @@
 if not istable(settings) then
 	settings = {
-		autobhop = false, speedometer = false, propbox = false, npcbox = false, npcbone = false, npcnametag = false,
+		autobhop = false, freecam = false, speedometer = false, propbox = false, npcbox = false, npcbone = false, npcnametag = false,
 		npchealth = false, npccursorline = false, playerbox = false, playerbone = false, playernametag = false,
 		playerhealth = false, playercursorline = false, entitybox = false, entitynametag = false, entitycursorline = false,
 		allfilter = ""
@@ -9,15 +9,47 @@ end
 
 if not istable(actlist) then
 	actlist = {
-		"agree", "becon", "bow", "cheer", "dance", "disagree", "forward",
-		"group", "halt", "laugh", "muscle", "robot", "salute", "wave", "zombie"
+		"agree", "becon", "bow", "cheer", "dance", "disagree", "forward", "group",
+		"halt", "laugh", "muscle", "pers", "robot", "salute", "wave", "zombie"
 	}
 end
 
-hook.Add("CreateMove", "AutoBhop", function(cmd)
+hook.Add("CreateMove", "AutoBhop and FreeCam", function(cmd)
 	local ply = LocalPlayer()
 	if settings.autobhop and cmd:KeyDown(IN_JUMP) and not ply:IsOnGround() and ply:WaterLevel() <= 1 and ply:GetMoveType() ~= MOVETYPE_NOCLIP then
 		cmd:RemoveKey(IN_JUMP)
+	elseif settings.freecam and freecamtoggle and not vgui.GetKeyboardFocus() and not gui.IsGameUIVisible() then
+		local mousex = cmd:GetMouseX()
+		local mousey = cmd:GetMouseY()
+		local speed = (input.IsKeyDown(KEY_LSHIFT) and 25 or 10)
+		local wishmove = Vector()
+		freecamAng.p = math.Clamp(freecamAng.p + mousey * 1.75 * 0.01, -89, 89)
+		freecamAng.y = freecamAng.y - mousex * 1.75 * 0.01
+		if input.IsKeyDown(KEY_W) then
+			wishmove = wishmove + freecamAng:Forward()
+		end
+		if input.IsKeyDown(KEY_S) then
+			wishmove = wishmove - freecamAng:Forward()
+		end
+		if input.IsKeyDown(KEY_D) then
+			wishmove = wishmove + freecamAng:Right()
+		end
+		if input.IsKeyDown(KEY_A) then
+			wishmove = wishmove - freecamAng:Right()
+		end
+		if input.IsKeyDown(KEY_SPACE) then
+			wishmove = wishmove + freecamAng:Up()
+		end
+		if input.IsKeyDown(KEY_LCONTROL) then
+			wishmove = wishmove - freecamAng:Up()
+		end
+		if wishmove:LengthSqr() > 0 then
+			wishmove:Normalize()
+			freecamPos = freecamPos + wishmove * speed
+		end
+		cmd:ClearButtons()
+		cmd:ClearMovement()
+		cmd:SetViewAngles(frozenPlayerViewAng)
 	end
 end)
 
@@ -25,125 +57,122 @@ hook.Add("HUDPaint", "DrawSpeedometer", function()
 	local ply = LocalPlayer()
 	local speed = math.Round(ply:GetVelocity():Length())
 	if settings.speedometer and ply:Alive() then
-		draw.SimpleText("Speed: " .. speed .. " u/s", "BudgetLabel", ScrW() / 2 - 45, ScrH() / 2 + 75, Color(255, 255, 255), TEXT_ALIGN_LEFT)
+		draw.SimpleText("Speed: " .. speed .. " u/s", "BudgetLabel", ScrW() / 2, ScrH() / 2 + 75, Color(255, 255, 255), TEXT_ALIGN_CENTER)
 	end
 end)
 
 hook.Add("PostDrawOpaqueRenderables", "DrawEntityVisuals", function()
-    local ply = LocalPlayer()
-    local allents = ents.GetAll()
-    local filter = (settings.allfilter or ""):lower()
-    local enableBoxes = settings.entitybox or settings.propbox or settings.npcbox or settings.playerbox
-    local enableBones = settings.npcbone or settings.playerbone
-    if not (enableBoxes or enableBones) then return end
-	cam.IgnoreZ(true)
-    for _, ent in ipairs(allents) do
-        if not IsValid(ent) then continue end
-        local class = ent:GetClass():lower()
-        local pos = ent:GetPos()
-        local ang = ent:GetAngles()
-        local obbMins, obbMaxs = ent:OBBMins(), ent:OBBMaxs()
-        if enableBoxes then
-            if settings.entitybox and (filter == "" or class:find(filter)) then
-                render.DrawWireframeBox(pos, ang, obbMins, obbMaxs, Color(255, 255, 255))
-            end
-            if settings.propbox and (class:find("prop_physics") or class:find("prop_dynamic")) then
-                render.DrawWireframeBox(pos, ang, obbMins, obbMaxs, Color(0, 255, 255))
-            end
-            if settings.npcbox and ent:IsNPC() and ent:Alive() then
-                render.DrawWireframeBox(pos, Angle(0, 0, 0), obbMins, obbMaxs, Color(255, 0, 0))
-            end
-            if settings.playerbox and ent:IsPlayer() and ent ~= ply and ent:Alive() then
-                render.DrawWireframeBox(pos, Angle(0, 0, 0), obbMins, obbMaxs, Color(255, 255, 0))
-            end
-        end
-        if enableBones then
-            local bones = ent:GetBoneCount()
-            if bones and bones > 0 then
-                local origin = pos
-                for i = 0, bones - 1 do
-                    local parent = ent:GetBoneParent(i)
-                    if parent ~= -1 then
-                        local bonePos1 = ent:GetBonePosition(i)
-                        local bonePos2 = ent:GetBonePosition(parent)
-                        if bonePos1 and bonePos2 and bonePos1:DistToSqr(origin) > 1 and bonePos2:DistToSqr(origin) > 1 then
-                            if settings.npcbone and ent:IsNPC() and ent:Alive() then
-                                render.DrawLine(bonePos1, bonePos2, Color(255, 0, 0))
-                            elseif settings.playerbone and ent:IsPlayer() and ent:Alive() and ent ~= ply then
-                                render.DrawLine(bonePos1, bonePos2, Color(255, 255, 0))
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-	cam.IgnoreZ(false)
+	local ply = LocalPlayer()
+	local allents = ents.GetAll()
+	local filter = (settings.allfilter or ""):lower()
+	if settings.npcbone or settings.playerbone or settings.entitybox or settings.propbox or settings.npcbox or settings.playerbox then
+		for _, ent in ipairs(allents) do
+			if IsValid(ent) then
+				local class = ent:GetClass():lower()
+				local pos = ent:GetPos()
+				local ang = ent:GetAngles()
+				local obbMins, obbMaxs = ent:OBBMins(), ent:OBBMaxs()
+				local bones = ent:GetBoneCount()
+				cam.IgnoreZ(true)
+				if settings.entitybox and (filter == "" or class:find(filter)) then
+					render.DrawWireframeBox(pos, ang, obbMins, obbMaxs, Color(255, 255, 255))
+				elseif settings.propbox and (class:find("prop_")) then
+					render.DrawWireframeBox(pos, ang, obbMins, obbMaxs, Color(0, 255, 255))
+				elseif settings.npcbox and ent:IsNPC() and ent:Alive() then
+					render.DrawWireframeBox(pos, Angle(0, 0, 0), obbMins, obbMaxs, Color(255, 0, 0))
+				elseif settings.playerbox and ent:IsPlayer() and ent ~= ply and ent:Alive() then
+					render.DrawWireframeBox(pos, Angle(0, 0, 0), obbMins, obbMaxs, Color(255, 255, 0))
+				elseif bones and bones > 0 then
+					local origin = pos
+					for i = 0, bones - 1 do
+						local parent = ent:GetBoneParent(i)
+						if parent ~= -1 then
+							local bonePos1 = ent:GetBonePosition(i)
+							local bonePos2 = ent:GetBonePosition(parent)
+							if bonePos1 and bonePos2 and bonePos1:DistToSqr(origin) > 1 and bonePos2:DistToSqr(origin) > 1 then
+								if settings.npcbone and ent:IsNPC() and ent:Alive() then
+									render.DrawLine(bonePos1, bonePos2, Color(255, 0, 0))
+								elseif settings.playerbone and ent:IsPlayer() and ent:Alive() and ent ~= ply then
+									render.DrawLine(bonePos1, bonePos2, Color(255, 255, 0))
+								end
+							end
+						end
+					end
+				end
+				cam.IgnoreZ(false)
+			end
+		end
+	end
 end)
 
 hook.Add("HUDPaint", "DrawEntityInfo", function()
-    local ply = LocalPlayer()
-    local allents = ents.GetAll()
-    local filter = (settings.allfilter or ""):lower()
-    local showNPCHealth = settings.npchealth
-    local showPlayerHealth = settings.playerhealth
-    local showEntityNametag = settings.entitynametag
-    local showNPCNametag = settings.npcnametag
-    local showPlayerNametag = settings.playernametag
-    if not (showNPCHealth or showPlayerHealth or showEntityNametag or showNPCNametag or showPlayerNametag) then return end
-    local npcOffset = showNPCNametag and -10 or 0
-    local playerOffset = showPlayerNametag and -10 or 0
-    for _, ent in ipairs(allents) do
-        if not IsValid(ent) then continue end
-        local pos = ent:EyePos():ToScreen()
-        if showNPCHealth and ent:IsNPC() and ent:Alive() then
-            draw.SimpleText("HP: " .. ent:Health(), "BudgetLabel", pos.x, pos.y + npcOffset, Color(255, 0, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
-        end
-        if showPlayerHealth and ent:IsPlayer() and ent ~= ply and ent:Alive() then
-            draw.SimpleText("HP: " .. ent:Health(), "BudgetLabel", pos.x, pos.y + playerOffset, Color(255, 255, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
-        end
-        if showEntityNametag then
-            local class = ent:GetClass():lower()
-            if filter == "" or class:find(filter) then
-                draw.SimpleText(ent:GetClass(), "BudgetLabel", pos.x, pos.y, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
-            end
-        end
-        if showNPCNametag and ent:IsNPC() and ent:Alive() then
-            draw.SimpleText(ent:GetClass(), "BudgetLabel", pos.x, pos.y, Color(255, 0, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
-        end
-        if showPlayerNametag and ent:IsPlayer() and ent ~= ply and ent:Alive() then
-            draw.SimpleText(ent:Nick(), "BudgetLabel", pos.x, pos.y, Color(255, 255, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
-        end
-    end
+	local ply = LocalPlayer()
+	local allents = ents.GetAll()
+	local filter = (settings.allfilter or ""):lower()
+	local npcOffset = settings.npcnametag and -12 or 0
+	local playerOffset = settings.playernametag and -12 or 0
+	if settings.npchealth or settings.playerhealth or settings.entitynametag or settings.npcnametag or settings.playernametag then
+		for _, ent in ipairs(allents) do
+			if IsValid(ent) then
+				local pos = ent:EyePos():ToScreen()
+				if settings.npchealth and ent:IsNPC() and ent:Alive() then
+					draw.SimpleText("HP:" .. ent:Health(), "BudgetLabel", pos.x, pos.y, Color(255, 0, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				elseif settings.playerhealth and ent:IsPlayer() and ent ~= ply and ent:Alive() then
+					local hp = ent:Health()
+					local armor = ent:Armor()
+					local text = "HP:" .. hp .. "|AP:" .. armor
+					draw.SimpleText(text, "BudgetLabel", pos.x, pos.y, Color(255, 255, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				end
+				if settings.npcnametag and ent:IsNPC() and ent:Alive() then
+					draw.SimpleText(ent:GetClass(), "BudgetLabel", pos.x, pos.y + npcOffset, Color(255, 0, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				end
+				if settings.playernametag and ent:IsPlayer() and ent ~= ply and ent:Alive() then
+					draw.SimpleText(ent:Nick(), "BudgetLabel", pos.x, pos.y + playerOffset, Color(255, 255, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				end
+				if settings.entitynametag then
+					local class = ent:GetClass():lower()
+					if filter == "" or class:find(filter) then
+						draw.SimpleText(ent:GetClass(), "BudgetLabel", pos.x, pos.y, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+					end
+				end
+			end
+		end
+	end
 end)
 
+
 hook.Add("PostDrawTranslucentRenderables", "DrawCursorLines", function()
-    local ply = LocalPlayer()
-    local allents = ents.GetAll()
-    local eyepos = ply:EyePos()
-    local aimvec = ply:GetAimVector()
-    local startpos = eyepos + aimvec * 50
-    local filter = (settings.allfilter or ""):lower()
-    local showEntityCursor = settings.entitycursorline
-    local showNPCCursor = settings.npccursorline
-    local showPlayerCursor = settings.playercursorline
-    if not (showEntityCursor or showNPCCursor or showPlayerCursor) then return end
-	cam.IgnoreZ(true)
-    for _, ent in ipairs(allents) do
-        if not IsValid(ent) then continue end
-        local class = ent:GetClass():lower()
-        local endPos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
-        if showEntityCursor and (filter == "" or class:find(filter)) then
-            render.DrawLine(startpos, endPos, Color(255, 255, 255))
-        end
-        if showNPCCursor and ent:IsNPC() and ent:Alive() then
-            render.DrawLine(startpos, endPos, Color(255, 0, 0))
-        end
-        if showPlayerCursor and ent:IsPlayer() and ent:Alive() and ent ~= ply then
-            render.DrawLine(startpos, endPos, Color(255, 255, 0))
-        end
-    end
-	cam.IgnoreZ(false)
+	local ply = LocalPlayer()
+	local allents = ents.GetAll()
+	local eyepos = ply:EyePos()
+	local aimvec = ply:GetAimVector()
+	local startpos = eyepos + aimvec * 50
+	local filter = (settings.allfilter or ""):lower()
+	if settings.entitycursorline or settings.npccursorline or settings.playercursorline then
+		if ply:Alive() and not ply:ShouldDrawLocalPlayer() then
+			for _, ent in ipairs(allents) do
+				if IsValid(ent) then
+					local class = ent:GetClass():lower()
+					local endPos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
+					if settings.entitycursorline and (filter == "" or class:find(filter)) then
+						render.DrawLine(startpos, endPos, Color(255, 255, 255), false)
+					elseif settings.npccursorline and ent:IsNPC() and ent:Alive() then
+						render.DrawLine(startpos, endPos, Color(255, 0, 0), false)
+					elseif settings.playercursorline and ent:IsPlayer() and ent:Alive() and ent ~= ply then
+						render.DrawLine(startpos, endPos, Color(255, 255, 0), false)
+					end
+				end
+			end
+		end
+	end
+end)
+
+hook.Add("PlayerBindPress", "freecamblockkeys", function(ply, bind, pressed)
+	if freecamtoggle then
+		if string.find(bind, "noclip") or string.find(bind, "impulse 100") or string.find(bind, "impulse 201") then
+			return true
+		end
+	end
 end)
 
 local function createlabel(text, parent)
@@ -177,7 +206,7 @@ local function createmenu()
 	local scrolldisplay = vgui.Create("DScrollPanel", tab)
 	frame:SetSize(300, 400)
 	frame:Center()
-	frame:SetTitle("Utility Menu")
+	frame:SetTitle("Utility Menu V5")
 	frame:SetDeleteOnClose(false)
 	frame:SetVisible(false)
 	tab:Dock(FILL)
@@ -186,6 +215,7 @@ local function createmenu()
 	tab:AddSheet("Display", scrolldisplay, "icon16/monitor.png")
 	createlabel("Miscellaneous Options:", scrollutility)
 	createcheckbox("Auto Bhop", scrollutility, "autobhop")
+	createcheckbox("Toggle Freecam", scrollutility, "freecam")
 	createlabel("Player Gestures:", scrollutility)
 	local grid = vgui.Create("DIconLayout", scrollutility)
 	grid:Dock(TOP)
@@ -197,9 +227,7 @@ local function createmenu()
 		local button = grid:Add("DButton")
 		button:SetText(act:sub(1,1):upper() .. act:sub(2):lower())
 		button:SetSize(60, 30)
-		button.DoClick = function()
-			RunConsoleCommand("act", act)
-		end
+		button.DoClick = function() RunConsoleCommand("act", act) end
 	end
 	createlabel("Miscellaneous Options:", scrolldisplay)
 	createcheckbox("Speedometer", scrolldisplay, "speedometer")
@@ -222,11 +250,28 @@ local function createmenu()
 	createcheckbox("Entity Cursor Lines", scrolldisplay, "entitycursorline")
 	local searchbox = vgui.Create("DTextEntry", scrolldisplay)
 	searchbox:Dock(TOP)
-	searchbox:DockMargin(5, 5, 5, 0)
+	searchbox:DockMargin(10, 5, 10, 0)
 	searchbox:SetPlaceholderText("Filter entities by class (e.g. npc_, prop_)")
 	searchbox.OnChange = function(self) settings.allfilter = self:GetValue() or "" end
 	return frame
 end
+
+concommand.Add("toggle_freecam", function()
+	if settings.freecam then
+		if freecamtoggle then
+			freecamtoggle = false
+			hook.Remove("CalcView", "FreecamView")
+		else
+			local ply = LocalPlayer()
+			freecamtoggle = true
+			freecamPos, freecamAng = ply:EyePos(), ply:EyeAngles()
+			frozenPlayerViewAng = ply:EyeAngles()
+			hook.Add("CalcView", "FreecamView", function(_,_,_,fov)
+				return {origin = freecamPos, angles = freecamAng, fov = fov, drawviewer = true}
+			end)
+		end
+	end
+end)
 
 concommand.Add("open_utility_menu", function()
 	if IsValid(utilitymenu) then
