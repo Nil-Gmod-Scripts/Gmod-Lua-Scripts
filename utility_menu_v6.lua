@@ -2,7 +2,7 @@ if not settings then
 	settings = {}
 end
 
-if not istable(actlist) then
+if not actlist then
 	actlist = {
 		"agree", "becon", "bow", "cheer", "dance", "disagree", "forward", "group",
 		"halt", "laugh", "muscle", "pers", "robot", "salute", "wave", "zombie"
@@ -10,35 +10,37 @@ if not istable(actlist) then
 end
 
 hook.Add("CreateMove", "autobhop", function(cmd)
-	local ply = LocalPlayer()
-	if settings.autobhop and cmd:KeyDown(IN_JUMP) and not ply:IsOnGround() and ply:WaterLevel() <= 1 and ply:GetMoveType() ~= MOVETYPE_NOCLIP then
-		cmd:RemoveKey(IN_JUMP)
+	if settings.autobhop then
+		local ply = LocalPlayer()
+		if cmd:KeyDown(IN_JUMP) and not ply:IsOnGround() and ply:WaterLevel() <= 1 and ply:GetMoveType() ~= MOVETYPE_NOCLIP then
+			cmd:RemoveKey(IN_JUMP)
+		end
 	end
 end)
 
 hook.Add("HUDPaint", "drawclientinfo", function()
-	local ply = LocalPlayer()
+	if settings.clientinfo then
+		local ply = LocalPlayer()
 		local sw, sh = ScrW(), ScrH()
-	if settings.clientinfo and ply:Alive() then
-		draw.SimpleText("Speed:" .. math.Round(ply:GetVelocity():Length()) .. "u/s", "BudgetLabel", sw / 2, sh / 2 + 75, Color(255, 255, 255), TEXT_ALIGN_CENTER)
-		draw.SimpleText("FPS:" .. math.floor(1 / FrameTime()), "BudgetLabel", sw / 2, sh / 2 + 87, Color(255, 255, 255), TEXT_ALIGN_CENTER)
+		if ply:Alive() then
+			draw.SimpleText("Speed:" .. math.Round(ply:GetVelocity():Length()) .. "u/s", "BudgetLabel", sw / 2, sh / 2 + 75, Color(255, 255, 255), TEXT_ALIGN_CENTER)
+			draw.SimpleText("FPS:" .. math.floor(1 / FrameTime()), "BudgetLabel", sw / 2, sh / 2 + 87, Color(255, 255, 255), TEXT_ALIGN_CENTER)
+		end
 	end
 end)
 
 hook.Add("PostDrawOpaqueRenderables", "drawentityboxes", function()
 	if settings.propbox or settings.npcbox or settings.playerbox then
 		for _, ent in ipairs(ents.GetAll()) do
-			if IsValid(ent) then
-				local pos = ent:GetPos()
-				local obbmins, obbmaxs = ent:OBBMins(), ent:OBBMaxs()
-				if settings.propbox and ent:GetClass():lower():find("prop_") then
-					render.DrawWireframeBox(pos, ent:GetAngles(), obbmins, obbmaxs, Color(0, 255, 255), false)
-				elseif ent:Alive() then
-					if settings.npcbox and ent:IsNPC() then
-						render.DrawWireframeBox(pos, Angle(0, 0, 0), obbmins, obbmaxs, Color(255, 0, 0), false)
-					elseif settings.playerbox and ent:IsPlayer() and ent ~= LocalPlayer() then
-						render.DrawWireframeBox(pos, Angle(0, 0, 0), obbmins, obbmaxs, Color(255, 255, 0), false)
-					end
+			local pos = ent:GetPos()
+			local omin, omax = ent:OBBMins(), ent:OBBMaxs()
+			if settings.propbox and ent:GetClass():lower():find("prop_") then
+				render.DrawWireframeBox(pos, ent:GetAngles(), omin, omax, Color(0, 255, 255), false)
+			elseif ent:Alive() then
+				if settings.npcbox and ent:IsNPC() then
+					render.DrawWireframeBox(pos, Angle(0, 0, 0), omin, omax, Color(255, 0, 0), false)
+				elseif settings.playerbox and ent:IsPlayer() and ent ~= LocalPlayer() then
+					render.DrawWireframeBox(pos, Angle(0, 0, 0), omin, omax, Color(255, 255, 0), false)
 				end
 			end
 		end
@@ -48,7 +50,7 @@ end)
 hook.Add("HUDPaint", "drawentityinfo", function()
 	if settings.npcinfo or settings.playerinfo then
 		for _, ent in ipairs(ents.GetAll()) do
-			if IsValid(ent) and ent:Alive() then
+			if ent:Alive() then
 				local pos = ent:EyePos():ToScreen()
 				local health = ent:Health()
 				if settings.npcinfo and ent:IsNPC() then
@@ -68,12 +70,12 @@ hook.Add("HUDPaint", "drawentityinfo", function()
 end)
 
 hook.Add("PostDrawTranslucentRenderables", "DrawCursorLines", function()
-	local ply = LocalPlayer()
-	local startpos = ply:EyePos() + ply:GetAimVector() * 50
 	if settings.npcline or settings.playerline then
+		local ply = LocalPlayer()
+		local startpos = ply:EyePos() + ply:GetAimVector() * 50
 		if ply:Alive() and not ply:ShouldDrawLocalPlayer() then
 			for _, ent in ipairs(ents.GetAll()) do
-				if IsValid(ent) and ent:Alive() then
+				if ent:Alive() then
 					local endpos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
 					if settings.npcline and ent:IsNPC() then
 						render.DrawLine(startpos, endpos, Color(255, 0, 0), false)
@@ -110,7 +112,7 @@ local function createcheckbox(text, parent, key)
 	return checkbox
 end
 
-local function createactgrid(parent, actlist)
+local function createactgrid(parent)
 	local grid = vgui.Create("DIconLayout", parent)
 	grid:Dock(TOP)
 	grid:SetSpaceX(5)
@@ -143,7 +145,7 @@ local function createmenu()
 	createlabel("Miscellaneous Options:", scrollutility)
 	createcheckbox("Auto Bhop", scrollutility, "autobhop")
 	createlabel("Player Gestures:", scrollutility)
-	createactgrid(scrollutility, actlist)
+	createactgrid(scrollutility)
 	createlabel("Miscellaneous Options:", scrolldisplay)
 	createcheckbox("Draw Client Info", scrolldisplay, "clientinfo")
 	createcheckbox("Draw Prop Boxes", scrolldisplay, "propbox")
