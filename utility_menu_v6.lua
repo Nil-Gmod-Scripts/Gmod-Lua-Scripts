@@ -2,45 +2,50 @@ if not settings then
 	settings = {}
 end
 
-if not actlist then
-	actlist = {
+if not acts then
+	acts = {
 		"agree", "becon", "bow", "cheer", "dance", "disagree", "forward", "group",
 		"halt", "laugh", "muscle", "pers", "robot", "salute", "wave", "zombie"
 	}
 end
 
+if not colors then
+	colors = {
+		white = Color(255, 255, 255), cyan = Color(0, 255, 255),
+		red = Color(255, 0, 0), yellow = Color(255, 255, 0)
+	}
+end
+
+local ply = LocalPlayer()
+
 hook.Add("CreateMove", "autobhop", function(cmd)
-	if settings.autobhop then
-		local ply = LocalPlayer()
-		if cmd:KeyDown(IN_JUMP) and not ply:IsOnGround() and ply:WaterLevel() <= 1 and ply:GetMoveType() ~= MOVETYPE_NOCLIP then
-			cmd:RemoveKey(IN_JUMP)
-		end
+	if settings.autobhop and cmd:KeyDown(IN_JUMP) and not ply:IsOnGround() and ply:WaterLevel() <= 1 and ply:GetMoveType() ~= MOVETYPE_NOCLIP and ply:Alive() then
+		cmd:RemoveKey(IN_JUMP)
 	end
 end)
 
 hook.Add("HUDPaint", "drawclientinfo", function()
-	if settings.clientinfo then
-		local ply = LocalPlayer()
+	if settings.clientinfo and ply:Alive() then
 		local sw, sh = ScrW(), ScrH()
-		if ply:Alive() then
-			draw.SimpleText("Speed:" .. math.Round(ply:GetVelocity():Length()) .. "u/s", "BudgetLabel", sw / 2, sh / 2 + 75, Color(255, 255, 255), TEXT_ALIGN_CENTER)
-			draw.SimpleText("FPS:" .. math.floor(1 / FrameTime()), "BudgetLabel", sw / 2, sh / 2 + 87, Color(255, 255, 255), TEXT_ALIGN_CENTER)
-		end
+		draw.SimpleText("Speed:" .. math.Round(ply:GetVelocity():Length()) .. "u/s", "BudgetLabel", sw / 2, sh / 2 + 75, colors.white, TEXT_ALIGN_CENTER)
+		draw.SimpleText("FPS:" .. math.floor(1 / FrameTime()), "BudgetLabel", sw / 2, sh / 2 + 87, colors.white, TEXT_ALIGN_CENTER)
 	end
 end)
 
 hook.Add("PostDrawOpaqueRenderables", "drawentityboxes", function()
 	if settings.propbox or settings.npcbox or settings.playerbox then
 		for _, ent in ipairs(ents.GetAll()) do
-			local pos = ent:GetPos()
-			local omin, omax = ent:OBBMins(), ent:OBBMaxs()
-			if settings.propbox and ent:GetClass():lower():find("prop_") then
-				render.DrawWireframeBox(pos, ent:GetAngles(), omin, omax, Color(0, 255, 255), false)
-			elseif ent:Alive() then
-				if settings.npcbox and ent:IsNPC() then
-					render.DrawWireframeBox(pos, Angle(0, 0, 0), omin, omax, Color(255, 0, 0), false)
-				elseif settings.playerbox and ent:IsPlayer() and ent ~= LocalPlayer() then
-					render.DrawWireframeBox(pos, Angle(0, 0, 0), omin, omax, Color(255, 255, 0), false)
+			if IsValid(ent) and ply:GetPos():Distance(ent:GetPos()) <= 5000 then
+				local pos = ent:GetPos()
+				local omin, omax = ent:OBBMins(), ent:OBBMaxs()
+				if settings.propbox and ent:GetClass():lower():find("prop_") then
+					render.DrawWireframeBox(pos, ent:GetAngles(), omin, omax, colors.cyan, false)
+				elseif ent:Alive() then
+					if settings.npcbox and ent:IsNPC() then
+						render.DrawWireframeBox(pos, Angle(0, 0, 0), omin, omax, colors.red, false)
+					elseif settings.playerbox and ent:IsPlayer() and ent ~= ply then
+						render.DrawWireframeBox(pos, Angle(0, 0, 0), omin, omax, colors.yellow, false)
+					end
 				end
 			end
 		end
@@ -50,18 +55,18 @@ end)
 hook.Add("HUDPaint", "drawentityinfo", function()
 	if settings.npcinfo or settings.playerinfo then
 		for _, ent in ipairs(ents.GetAll()) do
-			if ent:Alive() then
+			if IsValid(ent) and ent:Alive() then
 				local pos = ent:EyePos():ToScreen()
 				local health = ent:Health()
 				if settings.npcinfo and ent:IsNPC() then
-					draw.SimpleText(ent:GetClass(), "BudgetLabel", pos.x, pos.y + -12, Color(255, 0, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
-					draw.SimpleText("HP:" .. health, "BudgetLabel", pos.x, pos.y, Color(255, 0, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
-				elseif settings.playerinfo and ent:IsPlayer() and ent ~= LocalPlayer() then
-					draw.SimpleText(ent:Nick(), "BudgetLabel", pos.x, pos.y + -12, Color(255, 255, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+					draw.SimpleText(ent:GetClass(), "BudgetLabel", pos.x, pos.y + -12, colors.red, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+					draw.SimpleText("HP:" .. health, "BudgetLabel", pos.x, pos.y, colors.red, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				elseif settings.playerinfo and ent:IsPlayer() and ent ~= ply then
+					draw.SimpleText(ent:Nick(), "BudgetLabel", pos.x, pos.y + -12, colors.yellow, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 					if ent:Armor() > 0 then
-						draw.SimpleText("HP:" .. health .. "|AP:" .. ent:Armor(), "BudgetLabel", pos.x, pos.y, Color(255, 255, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+						draw.SimpleText("HP:" .. health .. "|AP:" .. ent:Armor(), "BudgetLabel", pos.x, pos.y, colors.yellow, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 					else
-						draw.SimpleText("HP:" .. health, "BudgetLabel", pos.x, pos.y, Color(255, 255, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+						draw.SimpleText("HP:" .. health, "BudgetLabel", pos.x, pos.y, colors.yellow, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 					end
 				end
 			end
@@ -71,16 +76,15 @@ end)
 
 hook.Add("PostDrawTranslucentRenderables", "DrawCursorLines", function()
 	if settings.npcline or settings.playerline then
-		local ply = LocalPlayer()
 		local startpos = ply:EyePos() + ply:GetAimVector() * 50
-		if ply:Alive() and not ply:ShouldDrawLocalPlayer() then
-			for _, ent in ipairs(ents.GetAll()) do
-				if ent:Alive() then
-					local endpos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
+		for _, ent in ipairs(ents.GetAll()) do
+			if IsValid(ent) and ply:Alive() and not ply:ShouldDrawLocalPlayer() then
+				local endpos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
+				if ent:Alive() and ply:GetPos():Distance(ent:GetPos()) <= 5000 then
 					if settings.npcline and ent:IsNPC() then
-						render.DrawLine(startpos, endpos, Color(255, 0, 0), false)
+						render.DrawLine(startpos, endpos, colors.red, false)
 					elseif settings.playerline and ent:IsPlayer() and ent ~= ply then
-						render.DrawLine(startpos, endpos, Color(255, 255, 0), false)
+						render.DrawLine(startpos, endpos, colors.yellow, false)
 					end
 				end
 			end
@@ -92,7 +96,7 @@ local function createlabel(text, parent)
 	local label = vgui.Create("DLabel", parent)
 	label:SetText(text)
 	label:SetFont("DermaDefaultBold")
-	label:SetTextColor(color_white)
+	label:SetTextColor(colors.white)
 	label:SizeToContents()
 	label:Dock(TOP)
 	label:DockMargin(5, 5, 0, 0)
@@ -103,7 +107,7 @@ local function createcheckbox(text, parent, key)
 	local checkbox = vgui.Create("DCheckBoxLabel", parent)
 	checkbox:SetText(text)
 	checkbox:SetFont("DermaDefault")
-	checkbox:SetTextColor(color_white)
+	checkbox:SetTextColor(colors.white)
 	checkbox:SetValue(settings[key] and true or false)
 	checkbox:Dock(TOP)
 	checkbox:SizeToContents()
@@ -112,20 +116,20 @@ local function createcheckbox(text, parent, key)
 	return checkbox
 end
 
-local function createactgrid(parent)
-	local grid = vgui.Create("DIconLayout", parent)
-	grid:Dock(TOP)
-	grid:SetSpaceX(5)
-	grid:SetSpaceY(5)
-	grid:CenterHorizontal()
-	grid:DockMargin(9, 5, 0, 0)
-	for _, act in ipairs(actlist) do
-		local button = grid:Add("DButton")
-		button:SetText(act:sub(1,1):upper() .. act:sub(2):lower())
-		button:SetSize(60, 30)
-		button.DoClick = function() RunConsoleCommand("act", act) end
-	end
-	return grid
+local function createButtonGrid(parent, list, onClick)
+    local grid = vgui.Create("DIconLayout", parent)
+    grid:Dock(TOP)
+    grid:SetSpaceX(5)
+    grid:SetSpaceY(5)
+    grid:CenterHorizontal()
+    grid:DockMargin(9, 5, 0, 0)
+    for _, item in ipairs(list) do
+        local btn = grid:Add("DButton")
+        btn:SetText(item:sub(1,1):upper() .. item:sub(2):lower())
+        btn:SetSize(60, 30)
+        btn.DoClick = function() onClick(item) end
+    end
+    return grid
 end
 
 local function createmenu()
@@ -145,7 +149,7 @@ local function createmenu()
 	createlabel("Miscellaneous Options:", scrollutility)
 	createcheckbox("Auto Bhop", scrollutility, "autobhop")
 	createlabel("Player Gestures:", scrollutility)
-	createactgrid(scrollutility)
+	createButtonGrid(scrollutility, acts, function(act) RunConsoleCommand("act", act) end)
 	createlabel("Miscellaneous Options:", scrolldisplay)
 	createcheckbox("Draw Client Info", scrolldisplay, "clientinfo")
 	createcheckbox("Draw Prop Boxes", scrolldisplay, "propbox")
