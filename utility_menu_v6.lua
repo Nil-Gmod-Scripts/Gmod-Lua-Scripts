@@ -201,7 +201,7 @@ hook.Add("HUDPaint", "drawinfo", function()
 			if IsValid(ent) and ent ~= ply and ent:Alive() then
 				local sx, sy = worldtomini(ent:GetPos(), yaw, scale, radius)
 				surface.SetDrawColor(255, 255, 0)
-				surface.DrawRect(cx + sx - 2, cy + sy - 2, 4, 4)
+				surface.DrawRect(cx + sx - 1, cy + sy - 1, 4, 4)
 				draw.SimpleText(ent:Nick(), "BudgetLabel", cx + sx, cy + sy - 2.5, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 			end
 		end
@@ -209,7 +209,7 @@ hook.Add("HUDPaint", "drawinfo", function()
 			if IsValid(ent) and ent:Alive() then
 				local sx, sy = worldtomini(ent:GetPos(), yaw, scale, radius)
 				surface.SetDrawColor(255, 0, 0)
-				surface.DrawRect(cx + sx - 2, cy + sy - 2, 4, 4)
+				surface.DrawRect(cx + sx - 1, cy + sy - 1, 4, 4)
 			end
 		end
 		local arrowSize = 4
