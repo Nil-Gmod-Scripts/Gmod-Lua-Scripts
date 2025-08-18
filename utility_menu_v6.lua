@@ -167,7 +167,7 @@ hook.Add("HUDPaint", "drawinfo", function()
 	if settings.minimap then
 		local function worldtomini(pos, yaw, scale, radius)
 			local ply = LocalPlayer()
-			local delta = pos - ply:GetPos()
+			local delta = pos - EyePos()
 			local angle
 			yaw = EyeAngles().y
 			angle = math.rad(-yaw - 90)
