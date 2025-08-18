@@ -35,7 +35,7 @@ local function updatecache()
 	entitycache.props = {}
 	local plypos = LocalPlayer():GetPos()
 	for _, ent in ipairs(ents.GetAll()) do
-		if IsValid(ent) and plypos:Distance(ent:GetPos()) <= 5000 then
+		if IsValid(ent) then
 			if ent:IsPlayer() and ent ~= LocalPlayer() then
 				table.insert(entitycache.players, ent)
 			elseif ent:IsNPC() then
