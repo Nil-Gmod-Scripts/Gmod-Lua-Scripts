@@ -5,7 +5,7 @@ local freecampos = Vector(0, 0, 0)
 local freecamang = Angle(0, 0, 0)
 local frozenplayerviewang = Angle(0, 0, 0)
 hook.Remove("CalcView", "FreecamView")
-local lastUpdate = 0
+local lastupdate = 0
 
 if not settings then
 	settings = {}
@@ -308,13 +308,13 @@ concommand.Add("toggle_freecam", function()
 	if settings.freecam then
 		if freecamtoggle then
 			freecamtoggle = false
-			hook.Remove("CalcView", "FreecamView")
+			hook.Remove("CalcView", "freecamview")
 		else
 			local ply = LocalPlayer()
 			freecamtoggle = true
 			freecampos, freecamang = ply:EyePos(), ply:EyeAngles()
 			frozenplayerviewang = ply:EyeAngles()
-			hook.Add("CalcView", "FreecamView", function(_,_,_,fov)
+			hook.Add("CalcView", "freecamview", function(_,_,_,fov)
 				return {origin = freecampos, angles = freecamang, fov = fov, drawviewer = true}
 			end)
 		end
