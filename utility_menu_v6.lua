@@ -157,10 +157,10 @@ hook.Add("HUDPaint", "drawinfo", function()
 		for _, ent in ipairs(entitycache.players or {}) do
 			if IsValid(ent) and ent:Alive() then
 				local pos = ent:EyePos():ToScreen()
-				draw.SimpleText(ent:Nick(), "BudgetLabel", pos.x, pos.y - 12, colors.yellow, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				draw.SimpleText(ent:Nick(), "BudgetLabel", pos.x, pos.y - 12, colors.white, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 				local text = "HP:" .. ent:Health()
 				if ent:Armor() > 0 then text = text .. "|AP:" .. ent:Armor() end
-				draw.SimpleText(text, "BudgetLabel", pos.x, pos.y, colors.yellow, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				draw.SimpleText(text, "BudgetLabel", pos.x, pos.y, colors.white, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 			end
 		end
 	end
@@ -168,7 +168,9 @@ hook.Add("HUDPaint", "drawinfo", function()
 		local function worldToMini(pos, yaw, scale, radius)
 			local ply = LocalPlayer()
 			local delta = pos - ply:GetPos()
-			local angle = math.rad(-yaw - 90)
+			local angle
+			yaw = EyeAngles().y
+			angle = math.rad(-yaw - 90)
 			local x = -(delta.x * math.cos(angle) - delta.y * math.sin(angle))
 			local y = delta.x * math.sin(angle) + delta.y * math.cos(angle)
 			x = x / scale
@@ -200,7 +202,7 @@ hook.Add("HUDPaint", "drawinfo", function()
 				local sx, sy = worldToMini(ent:GetPos(), yaw, scale, radius)
 				surface.SetDrawColor(255, 255, 0)
 				surface.DrawRect(cx + sx - 2, cy + sy - 2, 4, 4)
-				draw.SimpleText(ent:Nick(), "BudgetLabel", cx + sx, cy + sy - 5, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				draw.SimpleText(ent:Nick(), "BudgetLabel", cx + sx, cy + sy - 2.5, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 			end
 		end
 		for _, ent in ipairs(entitycache.npcs or {}) do
@@ -211,7 +213,7 @@ hook.Add("HUDPaint", "drawinfo", function()
 			end
 		end
 		local arrowSize = 4
-		surface.SetDrawColor(120, 255, 120, 255)
+		surface.SetDrawColor(0, 255, 0)
 		surface.DrawLine(cx, cy - arrowSize, cx - arrowSize, cy + arrowSize)
 		surface.DrawLine(cx, cy - arrowSize, cx + arrowSize, cy + arrowSize)
 	end
