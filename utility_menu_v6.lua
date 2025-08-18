@@ -4,7 +4,7 @@ local freecamtoggle = false
 local freecampos = Vector(0, 0, 0)
 local freecamang = Angle(0, 0, 0)
 local frozenplayerviewang = Angle(0, 0, 0)
-hook.Remove("CalcView", "FreecamView")
+hook.Remove("CalcView", "freecamview")
 local lastupdate = 0
 
 if not settings then
