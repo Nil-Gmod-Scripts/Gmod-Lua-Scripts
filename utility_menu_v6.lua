@@ -18,9 +18,38 @@ end
 
 local ply = LocalPlayer()
 
-hook.Add("CreateMove", "autobhop", function(cmd)
+hook.Add("CreateMove", "autobhop and freecam", function(cmd)
 	if settings.autobhop and cmd:KeyDown(IN_JUMP) and not ply:IsOnGround() and ply:WaterLevel() <= 1 and ply:GetMoveType() ~= MOVETYPE_NOCLIP and ply:Alive() then
 		cmd:RemoveKey(IN_JUMP)
+	elseif settings.freecam and freecamtoggle and not vgui.GetKeyboardFocus() and not gui.IsGameUIVisible() then
+		local mousex, mousey = cmd:GetMouseX(), cmd:GetMouseY()
+		local speed = (input.IsKeyDown(KEY_LSHIFT) and 25 or 10)
+		local wishmove = Vector()
+		local pitch_sens = GetConVar("m_pitch"):GetFloat()
+		local yaw_sens = GetConVar("m_yaw"):GetFloat()
+		freecamAng.p = math.Clamp(freecamAng.p + mousey * pitch_sens, -89, 89)
+		freecamAng.y = freecamAng.y - mousex * yaw_sens
+		if input.IsKeyDown(KEY_W) then wishmove = wishmove + freecamAng:Forward() end
+		if input.IsKeyDown(KEY_S) then wishmove = wishmove - freecamAng:Forward() end
+		if input.IsKeyDown(KEY_D) then wishmove = wishmove + freecamAng:Right() end
+		if input.IsKeyDown(KEY_A) then wishmove = wishmove - freecamAng:Right() end
+		if input.IsKeyDown(KEY_SPACE) then wishmove = wishmove + freecamAng:Up() end
+		if input.IsKeyDown(KEY_LCONTROL) then wishmove = wishmove - freecamAng:Up()end
+		if wishmove:LengthSqr() > 0 then
+			wishmove:Normalize()
+			freecamPos = freecamPos + wishmove * speed
+		end
+		cmd:ClearButtons()
+		cmd:ClearMovement()
+		cmd:SetViewAngles(frozenPlayerViewAng)
+	end
+end)
+
+hook.Add("PlayerBindPress", "freecamblockkeys", function(ply, bind, pressed)
+	if freecamtoggle then
+		if string.find(bind, "noclip") or string.find(bind, "impulse 100") or string.find(bind, "impulse 201") then
+			return true
+		end
 	end
 end)
 
@@ -148,6 +177,7 @@ local function createmenu()
 	tab:AddSheet("Display", scrolldisplay, "icon16/monitor.png")
 	createlabel("Miscellaneous Options:", scrollutility)
 	createcheckbox("Auto Bhop", scrollutility, "autobhop")
+	createcheckbox("Toggle Freecam", scrollutility, "freecam")
 	createlabel("Player Gestures:", scrollutility)
 	createButtonGrid(scrollutility, acts, function(act) RunConsoleCommand("act", act) end)
 	createlabel("Miscellaneous Options:", scrolldisplay)
@@ -173,5 +203,22 @@ concommand.Add("open_utility_menu", function()
 		utilitymenu = createmenu()
 		utilitymenu:SetVisible(true)
 		utilitymenu:MakePopup()
+	end
+end)
+
+concommand.Add("toggle_freecam", function()
+	if settings.freecam then
+		if freecamtoggle then
+			freecamtoggle = false
+			hook.Remove("CalcView", "FreecamView")
+		else
+			local ply = LocalPlayer()
+			freecamtoggle = true
+			freecamPos, freecamAng = ply:EyePos(), ply:EyeAngles()
+			frozenPlayerViewAng = ply:EyeAngles()
+			hook.Add("CalcView", "FreecamView", function(_,_,_,fov)
+				return {origin = freecamPos, angles = freecamAng, fov = fov, drawviewer = true}
+			end)
+		end
 	end
 end)
