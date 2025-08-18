@@ -4,8 +4,18 @@ local freecamtoggle = false
 local freecampos = Vector(0, 0, 0)
 local freecamang = Angle(0, 0, 0)
 local frozenplayerviewang = Angle(0, 0, 0)
-hook.Remove("CalcView", "freecamview")
 local lastupdate = 0
+
+hook.Remove("CalcView", "freecamview")
+hook.Remove("Think", "updatecache")
+hook.Remove("CreateMove", "autobhop and freecam")
+hook.Remove("PlayerBindPress", "freecamblockkeys")
+hook.Remove("PostDrawOpaqueRenderables", "drawentityboxes")
+hook.Remove("PostDrawTranslucentRenderables", "drawcursorlines")
+hook.Remove("HUDPaint", "drawinfo")
+
+concommand.Remove("open_utility_menu")
+concommand.Remove("toggle_freecam")
 
 if not settings then
 	settings = {}
@@ -293,7 +303,6 @@ local function createmenu()
 	return frame
 end
 
-concommand.Remove("open_utility_menu")
 concommand.Add("open_utility_menu", function()
 	if IsValid(utilitymenu) then
 		utilitymenu:SetVisible(true)
@@ -305,7 +314,6 @@ concommand.Add("open_utility_menu", function()
 	end
 end)
 
-concommand.Remove("toggle_freecam")
 concommand.Add("toggle_freecam", function()
 	if settings.freecam then
 		if freecamtoggle then
