@@ -165,7 +165,7 @@ hook.Add("HUDPaint", "drawinfo", function()
 		end
 	end
 	if settings.minimap then
-		local function worldToMini(pos, yaw, scale, radius)
+		local function worldtomini(pos, yaw, scale, radius)
 			local ply = LocalPlayer()
 			local delta = pos - ply:GetPos()
 			local angle
@@ -199,7 +199,7 @@ hook.Add("HUDPaint", "drawinfo", function()
 		surface.DrawPoly(poly)
 		for _, ent in ipairs(entitycache.players or {}) do
 			if IsValid(ent) and ent ~= ply and ent:Alive() then
-				local sx, sy = worldToMini(ent:GetPos(), yaw, scale, radius)
+				local sx, sy = worldtomini(ent:GetPos(), yaw, scale, radius)
 				surface.SetDrawColor(255, 255, 0)
 				surface.DrawRect(cx + sx - 2, cy + sy - 2, 4, 4)
 				draw.SimpleText(ent:Nick(), "BudgetLabel", cx + sx, cy + sy - 2.5, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
@@ -207,7 +207,7 @@ hook.Add("HUDPaint", "drawinfo", function()
 		end
 		for _, ent in ipairs(entitycache.npcs or {}) do
 			if IsValid(ent) and ent:Alive() then
-				local sx, sy = worldToMini(ent:GetPos(), yaw, scale, radius)
+				local sx, sy = worldtomini(ent:GetPos(), yaw, scale, radius)
 				surface.SetDrawColor(255, 0, 0)
 				surface.DrawRect(cx + sx - 2, cy + sy - 2, 4, 4)
 			end
