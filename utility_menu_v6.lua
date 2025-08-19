@@ -178,35 +178,24 @@ hook.Add("HUDPaint", "drawinfo", function()
 		local function worldtomini(pos, yaw, scale, radius)
 			local ply = LocalPlayer()
 			local delta = pos - EyePos()
-			local angle
 			yaw = EyeAngles().y
-			angle = math.rad(-yaw - 90)
+			local angle = math.rad(-yaw - 90)
 			local x = -(delta.x * math.cos(angle) - delta.y * math.sin(angle))
-			local y = delta.x * math.sin(angle) + delta.y * math.cos(angle)
+			local y =  delta.x * math.sin(angle) + delta.y * math.cos(angle)
 			x = x / scale
 			y = y / scale
-			local dist = math.sqrt(x * x + y * y)
-			if dist > radius then
-				local factor = radius / dist
-				x = x * factor
-				y = y * factor
-			end
+			x = math.Clamp(x, -radius, radius)
+			y = math.Clamp(y, -radius, radius)
 			return x, y
 		end
 		local ply = LocalPlayer()
 		if not IsValid(ply) then return end
-		local size, radius, scale = 220, 110, 32
-		local cx, cy = size / 2 + 16, size / 2 + 16
+		local size, radius, scale = 160, 80, 50
+		local cx, cy = ScrW() - size / 2 - 16, size / 2 + 16
 		local yaw = ply:EyeAngles().y
 		draw.NoTexture()
 		surface.SetDrawColor(0, 0, 0, 220)
-		local segments = 64
-		local poly = {}
-		for i = 0, segments do
-			local a = (i / segments) * math.pi * 2
-			table.insert(poly, {x = cx + math.cos(a) * radius, y = cy + math.sin(a) * radius})
-		end
-		surface.DrawPoly(poly)
+		surface.DrawRect(cx - radius, cy - radius, radius * 2, radius * 2)
 		for _, ent in ipairs(entitycache.players or {}) do
 			if IsValid(ent) and ent ~= ply and ent:Alive() then
 				local sx, sy = worldtomini(ent:GetPos(), yaw, scale, radius)
@@ -226,6 +215,7 @@ hook.Add("HUDPaint", "drawinfo", function()
 		surface.SetDrawColor(0, 255, 0)
 		surface.DrawLine(cx, cy - arrowSize, cx - arrowSize, cy + arrowSize)
 		surface.DrawLine(cx, cy - arrowSize, cx + arrowSize, cy + arrowSize)
+		surface.DrawLine(cx - arrowSize, cy + arrowSize, cx + arrowSize, cy + arrowSize)
 	end
 end)
 
