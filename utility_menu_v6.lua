@@ -202,9 +202,7 @@ hook.Add("HUDPaint", "drawinfo", function()
 	end
 	if settings.minimap then
 		local function worldtomini(pos, yaw, scale, radius)
-			local ply = LocalPlayer()
 			local delta = pos - EyePos()
-			yaw = EyeAngles().y
 			local angle = math.rad(-yaw - 90)
 			local x = -(delta.x * math.cos(angle) - delta.y * math.sin(angle))
 			local y =  delta.x * math.sin(angle) + delta.y * math.cos(angle)
@@ -216,14 +214,20 @@ hook.Add("HUDPaint", "drawinfo", function()
 		end
 		local ply = LocalPlayer()
 		if not IsValid(ply) then return end
-		local sizeLevels  = {150, 200, 250, 300, 400}
+		local sizeLevels = {150, 200, 250, 300, 400}
 		local scaleLevels = {25, 50, 75, 100, 125}
-		local sizeIndex  = math.Clamp(cookie.GetNumber("mapsize", 3), 1, 5)
-		local scaleIndex = math.Clamp(cookie.GetNumber("mapscale", 3), 1, 5)
+		local sizeIndex = math.Clamp(cookie.GetNumber("mapsize", 3), 1, #sizeLevels)
+		local scaleIndex = math.Clamp(cookie.GetNumber("mapscale", 3), 1, #scaleLevels)
+		local posIndex = math.Clamp(cookie.GetNumber("mappos", 1), 1, 4)
 		local size  = sizeLevels[sizeIndex]
 		local scale = scaleLevels[scaleIndex]
 		local radius = size / 2
-		local cx, cy = size / 2 + 16, size / 2 + 16
+		local screenW, screenH = ScrW(), ScrH()
+		local corners = {
+			{x = 16 + radius, y = 16 + radius}, {x = screenW - 16 - radius, y = 16 + radius},
+			{x = 16 + radius, y = screenH - 16 - radius}, {x = screenW - 16 - radius, y = screenH - 16 - radius}
+		}
+		local cx, cy = corners[posIndex].x, corners[posIndex].y
 		local yaw = ply:EyeAngles().y
 		draw.NoTexture()
 		surface.SetDrawColor(0, 0, 0, 225)
@@ -339,28 +343,22 @@ local function createmenu()
 	frame:SetVisible(false)
 	tab:Dock(FILL)
 	tab:SetFadeTime(0)
-	tab:AddSheet("Info", scrollinfo, "icon16/wrench.png")
+	tab:AddSheet("Info", scrollinfo, "icon16/book.png")
 	tab:AddSheet("Utility", scrollutility, "icon16/wrench.png")
 	tab:AddSheet("Display", scrolldisplay, "icon16/monitor.png")
 	tab:AddSheet("Settings", scrollsettings, "icon16/cog.png")
-	createlabel("Utility Menu V6", scrollinfo)
-	createmessage("A comprehensive utility script with various features for enhanced gameplay and visualization.", scrollinfo)
-	createlabel("Features:", scrollinfo)
-	createmessage("- Mini-map with player/NPC tracking\n- Auto bunny hop (BHop)\n- Free camera movement\n- Entity bounding boxes\n- ESP information displays\n- Player gesture controls", scrollinfo)
-	createlabel("Controls:", scrollinfo)
-	createmessage("- Freecam Toggle: Use console command 'toggle_freecam'\n- Menu Toggle: Use console command 'open_utility_menu'\n- Freecam Movement: WASD + Space/Control\n- Freecam Speed: Hold Shift for faster movement", scrollinfo)
-	createlabel("Navigation:", scrollinfo)
-	createmessage("- Utility Tab: BHop, Freecam, Gestures\n- Display Tab: ESP and visual options\n- Settings Tab: Map configuration", scrollinfo)
-	createmessage("Note: Some features may require proper positioning or specific game conditions to work optimally.", scrollinfo)
+	createlabel("Welcome!", scrollinfo)
+	createmessage("This lua script was made for me and a friend and mainly for me. it adds a lot of fun and useful features like a mini-map and ESP.", scrollinfo)
+	createmessage("Go NUTS!", scrollinfo)
 	createlabel("Miscellaneous Options:", scrollutility)
 	createcheckbox("Auto Bhop", "autobhop",  scrollutility)
 	createcheckbox("Toggle Freecam", "freecam", scrollutility)
-	createcheckbox("Show Minimap", "minimap", scrollutility)
 	createlabel("Player Gestures:", scrollutility)
 	createbuttongrid(acts, function(act) RunConsoleCommand("act", act) end, scrollutility)
 	createlabel("Miscellaneous Options:", scrolldisplay)
 	createcheckbox("Draw Client Info", "clientinfo",  scrolldisplay)
 	createcheckbox("Draw Prop Boxes", "propbox", scrolldisplay)
+	createcheckbox("Show Minimap", "minimap", scrolldisplay)
 	createlabel("NPC Options:", scrolldisplay)
 	createcheckbox("Draw NPC Boxes", "npcbox", scrolldisplay)
 	createcheckbox("Draw NPC Lines", "npcline", scrolldisplay)
@@ -372,6 +370,7 @@ local function createmenu()
 	createlabel("Map Settings:", scrollsettings)
 	createslider("Map Size:", 1, 5, "mapsize", scrollsettings)
 	createslider("Map Scale:", 1, 5, "mapscale", scrollsettings)
+	createslider("Map Pos:", 1, 4, "mappos", scrollsettings)
 	return frame
 end
 
