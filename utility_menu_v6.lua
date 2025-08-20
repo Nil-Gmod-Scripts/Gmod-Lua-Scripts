@@ -55,22 +55,29 @@ local function updatecache()
 	entitycaches.players = {}
 	entitycaches.npcs = {}
 	entitycaches.props = {}
-	local plypos = LocalPlayer():GetPos()
+	local ply = LocalPlayer()
 	for _, ent in ipairs(ents.GetAll()) do
 		if IsValid(ent) then
-			if ent:IsPlayer() and ent ~= LocalPlayer() then
+			local class = ent:GetClass():lower()
+			if ent:IsPlayer() and ent ~= ply then
 				table.insert(entitycaches.players, ent)
+			elseif class:find("prop_") then
+				table.insert(entitycaches.props, ent)
 			elseif ent:Alive() then
-				local class = ent:GetClass():lower()
-				local isValidNPC = not (
-					class:find("class") or class:find("prop_") or class:find("beam") or class:find("func_") or class:find("player")
-					or class:find("weapon_") or class:find("viewmodel") or class:find("gmod") or class:find("env_")
-				)
+				local excluded = {
+					"class", "prop_", "beam", "func_", "player",
+					"weapon_", "viewmodel", "gmod", "env_"
+				}
+				local isValidNPC = true
+				for _, pattern in ipairs(excluded) do
+					if class:find(pattern) then
+						isValidNPC = false
+						break
+					end
+				end
 				if isValidNPC then
 					table.insert(entitycaches.npcs, ent)
 				end
-			elseif ent:GetClass():lower():find("prop_") then
-				table.insert(entitycaches.props, ent)
 			end
 		end
 	end
