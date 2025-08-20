@@ -59,25 +59,12 @@ local function updatecache()
 	for _, ent in ipairs(ents.GetAll()) do
 		if IsValid(ent) then
 			local class = ent:GetClass():lower()
-			if ent:IsPlayer() and ent ~= ply then
-				table.insert(entitycaches.players, ent)
-			elseif class:find("prop_") then
+			if class:find("prop_") then
 				table.insert(entitycaches.props, ent)
-			elseif ent:Alive() then
-				local excluded = {
-					"class", "prop_", "beam", "func_", "player",
-					"weapon_", "viewmodel", "gmod", "env_"
-				}
-				local isValidNPC = true
-				for _, pattern in ipairs(excluded) do
-					if class:find(pattern) then
-						isValidNPC = false
-						break
-					end
-				end
-				if isValidNPC then
-					table.insert(entitycaches.npcs, ent)
-				end
+			elseif ent:IsNPC() then
+				table.insert(entitycaches.npcs, ent)
+			elseif ent:IsPlayer() and ent ~= ply then
+				table.insert(entitycaches.players, ent)
 			end
 		end
 	end
