@@ -60,8 +60,15 @@ local function updatecache()
 		if IsValid(ent) then
 			if ent:IsPlayer() and ent ~= LocalPlayer() then
 				table.insert(entitycaches.players, ent)
-			elseif ent:IsNPC() then
-				table.insert(entitycaches.npcs, ent)
+			elseif ent:Alive() then
+				local class = ent:GetClass():lower()
+				local isValidNPC = not (
+					class:find("class") or class:find("prop_") or class:find("beam") or class:find("func_") or class:find("player")
+					or class:find("weapon_") or class:find("viewmodel") or class:find("gmod") or class:find("env_")
+				)
+				if isValidNPC then
+					table.insert(entitycaches.npcs, ent)
+				end
 			elseif ent:GetClass():lower():find("prop_") then
 				table.insert(entitycaches.props, ent)
 			end
@@ -219,7 +226,7 @@ hook.Add("HUDPaint", "drawinfo", function()
 				local sx, sy = worldtomini(ent:GetPos(), yaw, scale, radius)
 				surface.SetDrawColor(255, 255, 0)
 				surface.DrawRect(cx + sx - 1, cy + sy - 1, 4, 4)
-				draw.SimpleTextOutlined(ent:Nick(), "DermaDefault", cx + sx, cy + sy - 2.5, colors.yellow, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM, 1, colors.black)
+				draw.SimpleText(ent:Nick(), "BudgetLabel", cx + sx, cy + sy - 0.5, colors.yellow, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 			end
 		end
 		for _, ent in ipairs(entitycaches.npcs or {}) do
