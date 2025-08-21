@@ -214,7 +214,7 @@ hook.Add("HUDPaint", "drawinfo", function()
 			{x = 16 + radius, y = screenH - 16 - radius}, {x = screenW - 16 - radius, y = screenH - 16 - radius}
 		}
 		local cx, cy = corners[posIndex].x, corners[posIndex].y
-		local yaw = ply:EyeAngles().y
+		local yaw = EyeAngles().y
 		draw.NoTexture()
 		surface.SetDrawColor(0, 0, 0, 225)
 		surface.DrawRect(cx - radius, cy - radius, radius * 2, radius * 2)
