@@ -1,6 +1,5 @@
 if SERVER then return end
 
-hook.Remove("CalcView", "freecamview")
 hook.Remove("Think", "updatecache")
 hook.Remove("CreateMove", "autobhop and freecam")
 hook.Remove("PlayerBindPress", "freecamblockkeys")
