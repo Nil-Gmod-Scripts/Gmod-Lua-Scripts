@@ -12,20 +12,14 @@ concommand.Remove("toggle_freecam")
 
 if not globalvalues then
 	globalvalues = {
-		scriptran = false,
-		freecamtoggle = false,
-		freecampos = Vector(0, 0, 0),
-		freecamang = Angle(0, 0, 0),
-		frozenplayerviewang = Angle(0, 0, 0),
-		lastupdate = 0
+		scriptran = false, freecamtoggle = false, freecampos = Vector(0, 0, 0), freecamang = Angle(0, 0, 0),
+		frozenplayerviewang = Angle(0, 0, 0), lastupdate = 0
 	}
 end
 
 if not globalvalues.scriptran then
 	globalvalues.scriptran = true
-	print()
-	print("Run 'open_utility_menu' to open the menu!")
-	print()
+	print() print("Run 'open_utility_menu' to open the menu!") print()
 end
 
 if not settings then
@@ -70,7 +64,7 @@ local function updatecache()
 end
 
 hook.Add("Think", "updatecache", function()
-	if CurTime() - globalvalues.lastupdate > 0.5 then
+	if CurTime() - globalvalues.lastupdate > 0.1 then
 		updatecache()
 		globalvalues.lastupdate = CurTime()
 	end
@@ -101,14 +95,14 @@ hook.Add("CreateMove", "autobhop and freecam", function(cmd)
 		cmd:ClearButtons()
 		cmd:ClearMovement()
 		cmd:SetViewAngles(globalvalues.frozenplayerviewang)
-	end
-end)
-
-hook.Add("PlayerBindPress", "freecamblockkeys", function(ply, bind, pressed)
-	if globalvalues.freecamtoggle then
-		if string.find(bind, "noclip") or string.find(bind, "impulse 100") or string.find(bind, "impulse 201") then
-			return true
-		end
+		
+		hook.Add("PlayerBindPress", "freecamblockkeys", function(ply, bind, pressed)
+			if globalvalues.freecamtoggle then
+				if string.find(bind, "noclip") or string.find(bind, "impulse 100") or string.find(bind, "impulse 201") then
+					return true
+				end
+			end
+		end)
 	end
 end)
 
@@ -161,8 +155,8 @@ end)
 
 hook.Add("HUDPaint", "drawinfo", function()
 	local ply = LocalPlayer()
+	local sw, sh = ScrW(), ScrH()
 	if settings.clientinfo and ply:Alive() then
-		local sw, sh = ScrW(), ScrH()
 		draw.SimpleText("Speed:" .. math.Round(ply:GetVelocity():Length()) .. "u/s", "BudgetLabel", sw / 2, sh / 2 + 75, colors.white, TEXT_ALIGN_CENTER)
 		draw.SimpleText("FPS:" .. math.floor(1 / FrameTime()), "BudgetLabel", sw / 2, sh / 2 + 87, colors.white, TEXT_ALIGN_CENTER)
 	end
@@ -200,44 +194,42 @@ hook.Add("HUDPaint", "drawinfo", function()
 		end
 		local ply = LocalPlayer()
 		if not IsValid(ply) then return end
-		local sizeLevels = {150, 200, 250, 300, 400}
-		local scaleLevels = {25, 50, 75, 100, 125}
-		local sizeIndex = math.Clamp(cookie.GetNumber("mapsize", 3), 1, #sizeLevels)
-		local scaleIndex = math.Clamp(cookie.GetNumber("mapscale", 3), 1, #scaleLevels)
-		local posIndex = math.Clamp(cookie.GetNumber("mappos", 1), 1, 4)
-		local size  = sizeLevels[sizeIndex]
-		local scale = scaleLevels[scaleIndex]
+		local sizes = {150, 200, 250, 300, 400}
+		local scales = {25, 50, 75, 100, 125}
+		local sizeindex = math.Clamp(cookie.GetNumber("mapsize", 3), 1, #sizes)
+		local scaleindex = math.Clamp(cookie.GetNumber("mapscale", 3), 1, #scales)
+		local posindex = math.Clamp(cookie.GetNumber("mappos", 1), 1, 4)
+		local size  = sizes[sizeindex]
+		local scale = scales[scaleindex]
 		local radius = size / 2
-		local screenW, screenH = ScrW(), ScrH()
 		local corners = {
-			{x = 16 + radius, y = 16 + radius}, {x = screenW - 16 - radius, y = 16 + radius},
-			{x = 16 + radius, y = screenH - 16 - radius}, {x = screenW - 16 - radius, y = screenH - 16 - radius}
+			{x = 16 + radius, y = 16 + radius}, {x = sw - 16 - radius, y = 16 + radius},
+			{x = 16 + radius, y = sh - 16 - radius}, {x = sw - 16 - radius, y = sh - 16 - radius}
 		}
-		local cx, cy = corners[posIndex].x, corners[posIndex].y
+		local cx, cy = corners[posindex].x, corners[posindex].y
 		local yaw = EyeAngles().y
 		draw.NoTexture()
 		surface.SetDrawColor(0, 0, 0, 225)
 		surface.DrawRect(cx - radius, cy - radius, radius * 2, radius * 2)
-		for _, ent in ipairs(entitycaches.players or {}) do
-			if IsValid(ent) and ent ~= ply and ent:Alive() then
-				local sx, sy = worldtomini(ent:GetPos(), yaw, scale, radius)
-				surface.SetDrawColor(255, 255, 0)
-				surface.DrawRect(cx + sx - 1, cy + sy - 1, 4, 4)
-				draw.SimpleText(ent:Nick(), "BudgetLabel", cx + sx, cy + sy - 0.5, colors.yellow, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
-			end
-		end
 		for _, ent in ipairs(entitycaches.npcs or {}) do
 			if IsValid(ent) and ent:Alive() then
 				local sx, sy = worldtomini(ent:GetPos(), yaw, scale, radius)
 				surface.SetDrawColor(255, 0, 0)
-				surface.DrawRect(cx + sx - 1, cy + sy - 1, 4, 4)
+				surface.DrawRect(cx + sx - 2, cy + sy - 2, 4, 4)
 			end
 		end
-		local arrowSize = 4
+		for _, ent in ipairs(entitycaches.players or {}) do
+			if IsValid(ent) and ent ~= ply and ent:Alive() then
+				local sx, sy = worldtomini(ent:GetPos(), yaw, scale, radius)
+				surface.SetDrawColor(255, 255, 0)
+				surface.DrawRect(cx + sx - 2, cy + sy - 2, 4, 4)
+				draw.SimpleText(ent:Nick(), "BudgetLabel", cx + sx, cy + sy, colors.yellow, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+			end
+		end
 		surface.SetDrawColor(0, 255, 0)
-		surface.DrawLine(cx, cy - arrowSize, cx - arrowSize, cy + arrowSize)
-		surface.DrawLine(cx, cy - arrowSize, cx + arrowSize, cy + arrowSize)
-		surface.DrawLine(cx - arrowSize, cy + arrowSize, cx + arrowSize, cy + arrowSize)
+		surface.DrawLine(cx, cy - 4, cx - 4, cy + 4)
+		surface.DrawLine(cx, cy - 4, cx + 4, cy + 4)
+		surface.DrawLine(cx - 4, cy + 4, cx + 4, cy + 4)
 	end
 end)
 
