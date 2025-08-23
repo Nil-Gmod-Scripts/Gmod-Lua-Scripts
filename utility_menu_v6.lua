@@ -76,7 +76,6 @@ hook.Add("CreateMove", "autobhop and freecam", function(cmd)
 		cmd:RemoveKey(IN_JUMP)
 	elseif not settings.freecam and globalvalues.freecamtoggle then
 		globalvalues.freecamtoggle = false
-		globalvalues.freecamhookadded = false
 		hook.Remove("CalcView", "freecamview")
 		hook.Remove("PlayerBindPress", "freecamblockkeys")
 	elseif settings.freecam and globalvalues.freecamtoggle and not vgui.GetKeyboardFocus() and not gui.IsGameUIVisible() then
@@ -100,16 +99,13 @@ hook.Add("CreateMove", "autobhop and freecam", function(cmd)
 		cmd:ClearButtons()
 		cmd:ClearMovement()
 		cmd:SetViewAngles(globalvalues.frozenplayerviewang)
-		if not globalvalues.freecamhookadded then
-			globalvalues.freecamhookadded = true
-			hook.Add("PlayerBindPress", "freecamblockkeys", function(ply, bind, pressed)
-				if globalvalues.freecamtoggle then
-					if string.find(bind, "noclip") or string.find(bind, "impulse 100") or string.find(bind, "impulse 201") then
-						return true
-					end
+		hook.Add("PlayerBindPress", "freecamblockkeys", function(ply, bind, pressed)
+			if globalvalues.freecamtoggle then
+				if string.find(bind, "noclip") or string.find(bind, "impulse 100") or string.find(bind, "impulse 201") then
+					return true
 				end
-			end)
-		end
+			end
+		end)
 	end
 end)
 
@@ -317,10 +313,10 @@ end
 local function createmenu()
 	local frame = vgui.Create("DFrame")
 	local tab = vgui.Create("DPropertySheet", frame)
-	local scrollinfo = vgui.Create("DScrollPanel", tab)
 	local scrollutility = vgui.Create("DScrollPanel", tab)
 	local scrolldisplay = vgui.Create("DScrollPanel", tab)
 	local scrollsettings = vgui.Create("DScrollPanel", tab)
+	local scrollinfo = vgui.Create("DScrollPanel", tab)
 	frame:SetSize(300, 400)
 	frame:Center()
 	frame:SetTitle("Utility Menu V6")
@@ -328,13 +324,10 @@ local function createmenu()
 	frame:SetVisible(false)
 	tab:Dock(FILL)
 	tab:SetFadeTime(0)
-	tab:AddSheet("Info", scrollinfo, "icon16/book.png")
 	tab:AddSheet("Utility", scrollutility, "icon16/wrench.png")
 	tab:AddSheet("Display", scrolldisplay, "icon16/monitor.png")
 	tab:AddSheet("Settings", scrollsettings, "icon16/cog.png")
-	createlabel("Welcome!", scrollinfo)
-	createmessage("This lua script was made for me and a friend and mainly for me. it adds a lot of fun and useful features like a mini-map and ESP.", scrollinfo)
-	createmessage("Go NUTS!", scrollinfo)
+	tab:AddSheet("Info", scrollinfo, "icon16/book.png")
 	createlabel("Miscellaneous Options:", scrollutility)
 	createcheckbox("Auto Bhop", "autobhop",  scrollutility)
 	createcheckbox("Toggle Freecam", "freecam", scrollutility)
@@ -356,6 +349,9 @@ local function createmenu()
 	createslider("Map Size:", 1, 5, "mapsize", scrollsettings)
 	createslider("Map Scale:", 1, 5, "mapscale", scrollsettings)
 	createslider("Map Pos:", 1, 4, "mappos", scrollsettings)
+	createlabel("Welcome!", scrollinfo)
+	createmessage("This lua script was made for me and a friend and mainly for me. it adds a lot of fun and useful features like a mini-map and ESP.", scrollinfo)
+	createmessage("Go NUTS!", scrollinfo)
 	return frame
 end
 
