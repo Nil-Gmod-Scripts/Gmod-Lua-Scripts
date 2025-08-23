@@ -74,6 +74,11 @@ hook.Add("CreateMove", "autobhop and freecam", function(cmd)
 	local ply = LocalPlayer()
 	if settings.autobhop and cmd:KeyDown(IN_JUMP) and not ply:IsOnGround() and ply:WaterLevel() <= 1 and ply:GetMoveType() ~= MOVETYPE_NOCLIP then
 		cmd:RemoveKey(IN_JUMP)
+	elseif not settings.freecam and globalvalues.freecamtoggle then
+		globalvalues.freecamtoggle = false
+		globalvalues.freecamhookadded = false
+		hook.Remove("CalcView", "freecamview")
+		hook.Remove("PlayerBindPress", "freecamblockkeys")
 	elseif settings.freecam and globalvalues.freecamtoggle and not vgui.GetKeyboardFocus() and not gui.IsGameUIVisible() then
 		local mousex, mousey = cmd:GetMouseX(), cmd:GetMouseY()
 		local speed = (input.IsKeyDown(KEY_LSHIFT) and 25 or 10)
@@ -95,14 +100,16 @@ hook.Add("CreateMove", "autobhop and freecam", function(cmd)
 		cmd:ClearButtons()
 		cmd:ClearMovement()
 		cmd:SetViewAngles(globalvalues.frozenplayerviewang)
-		
-		hook.Add("PlayerBindPress", "freecamblockkeys", function(ply, bind, pressed)
-			if globalvalues.freecamtoggle then
-				if string.find(bind, "noclip") or string.find(bind, "impulse 100") or string.find(bind, "impulse 201") then
-					return true
+		if not globalvalues.freecamhookadded then
+			globalvalues.freecamhookadded = true
+			hook.Add("PlayerBindPress", "freecamblockkeys", function(ply, bind, pressed)
+				if globalvalues.freecamtoggle then
+					if string.find(bind, "noclip") or string.find(bind, "impulse 100") or string.find(bind, "impulse 201") then
+						return true
+					end
 				end
-			end
-		end)
+			end)
+		end
 	end
 end)
 
