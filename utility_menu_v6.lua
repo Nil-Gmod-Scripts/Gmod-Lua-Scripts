@@ -10,55 +10,41 @@ hook.Remove("HUDPaint", "drawinfo")
 concommand.Remove("open_utility_menu")
 concommand.Remove("toggle_freecam")
 
-if not globalvalues then
-	globalvalues = {
-		scriptran = false, freecamtoggle = false, freecampos = Vector(0, 0, 0), freecamang = Angle(0, 0, 0),
-		frozenplayerviewang = Angle(0, 0, 0), lastupdate = 0
-	}
-end
+globalvalues = globalvalues or {
+	scriptran = false, freecamtoggle = false, freecampos=Vector(0, 0, 0), freecamang = Angle(0, 0, 0),
+	frozenplayerviewang = Angle(0, 0, 0), lastupdate = 0
+}
 
 if not globalvalues.scriptran then
 	globalvalues.scriptran = true
-	print() print("Run 'open_utility_menu' to open the menu!") print()
+	print("\nRun 'open_utility_menu' to open the menu!\n")
 end
 
-if not settings then
-	settings = {}
-end
+settings = settings or {}
 
-if not acts then
-	acts = {
-		"agree", "becon", "bow", "cheer", "dance", "disagree", "forward", "group",
-		"halt", "laugh", "muscle", "pers", "robot", "salute", "wave", "zombie"
-	}
-end
+acts = acts or {
+	"agree", "becon", "bow", "cheer", "dance", "disagree", "forward", "group",
+	"halt", "laugh", "muscle", "pers", "robot", "salute", "wave", "zombie"
+}
 
-if not colors then
-	colors = {
-		white = Color(255, 255, 255), cyan = Color(0, 255, 255), red = Color(255, 0, 0),
-		yellow = Color(255, 255, 0), green = Color(0, 255, 0), black = Color(0, 0, 0)
-	}
-end
+colors = colors or {
+	white = Color(255, 255, 255), cyan = Color(0, 255, 255), red = Color(255, 0, 0),
+	yellow = Color(255, 255, 0), green = Color(0, 255, 0), black = Color(0, 0, 0)
+}
 
-if not entitycaches then
-	entitycaches = {players = {}, npcs = {}, props = {}}
-end
+entitycaches = entitycaches or {players = {}, npcs = {}, props = {}}
 
 local function updatecache()
-	entitycaches.players = {}
-	entitycaches.npcs = {}
-	entitycaches.props = {}
-	local ply = LocalPlayer()
+	for _, t in pairs(entitycaches) do table.Empty(t) end
 	for _, ent in ipairs(ents.GetAll()) do
-		if IsValid(ent) then
-			local class = ent:GetClass():lower()
-			if class:find("prop_") then
-				table.insert(entitycaches.props, ent)
-			elseif ent:IsNPC() then
-				table.insert(entitycaches.npcs, ent)
-			elseif ent:IsPlayer() and ent ~= ply then
-				table.insert(entitycaches.players, ent)
-			end
+		if not IsValid(ent) then continue end
+		local class = ent:GetClass():lower()
+		if class:find("prop_") then
+			table.insert(entitycaches.props, ent)
+		elseif ent:IsNPC() then
+			table.insert(entitycaches.npcs, ent)
+		elseif ent:IsPlayer() and ent ~= LocalPlayer() then
+			table.insert(entitycaches.players, ent)
 		end
 	end
 end
@@ -80,7 +66,8 @@ hook.Add("CreateMove", "autobhop and freecam", function(cmd)
 		hook.Remove("PlayerBindPress", "freecamblockkeys")
 	elseif settings.freecam and globalvalues.freecamtoggle and not vgui.GetKeyboardFocus() and not gui.IsGameUIVisible() then
 		local mousex, mousey = cmd:GetMouseX(), cmd:GetMouseY()
-		local speed = (input.IsKeyDown(KEY_LSHIFT) and 25 or 10)
+		local basespeed = math.Clamp(cookie.GetNumber("basespeed", 1), 1, 100)
+		local speed = (input.IsKeyDown(KEY_LSHIFT) and basespeed * 10 or basespeed / 3)
 		local wishmove = Vector()
 		local pitchsens = GetConVar("m_pitch"):GetFloat()
 		local yawsens = GetConVar("m_yaw"):GetFloat()
@@ -197,17 +184,13 @@ hook.Add("HUDPaint", "drawinfo", function()
 		end
 		local ply = LocalPlayer()
 		if not IsValid(ply) then return end
-		local sizes = {150, 200, 250, 300, 400}
-		local scales = {25, 50, 75, 100, 125}
-		local sizeindex = math.Clamp(cookie.GetNumber("mapsize", 3), 1, #sizes)
-		local scaleindex = math.Clamp(cookie.GetNumber("mapscale", 3), 1, #scales)
+		local size  = ({150, 200, 250, 300, 400})[math.Clamp(cookie.GetNumber("mapsize", 1), 1, 5)]
+		local scale = ({25, 50, 75, 100, 125})[math.Clamp(cookie.GetNumber("mapscale", 1), 1, 5)]
 		local posindex = math.Clamp(cookie.GetNumber("mappos", 1), 1, 4)
-		local size  = sizes[sizeindex]
-		local scale = scales[scaleindex]
 		local radius = size / 2
 		local corners = {
-			{x = 16 + radius, y = 16 + radius}, {x = sw - 16 - radius, y = 16 + radius},
-			{x = 16 + radius, y = sh - 16 - radius}, {x = sw - 16 - radius, y = sh - 16 - radius}
+			{x=16+radius, y=16+radius}, {x=sw-16-radius, y=16+radius},
+			{x=16+radius, y=sh-16-radius}, {x=sw-16-radius, y=sh-16-radius}
 		}
 		local cx, cy = corners[posindex].x, corners[posindex].y
 		local yaw = EyeAngles().y
@@ -352,6 +335,8 @@ local function createmenu()
 	createslider("Map Size:", 1, 5, "mapsize", scrollsettings)
 	createslider("Map Scale:", 1, 5, "mapscale", scrollsettings)
 	createslider("Map Pos:", 1, 4, "mappos", scrollsettings)
+	createlabel("Free Cam:", scrollsettings)
+	createslider("Free Cam Speed:", 1, 100, "basespeed", scrollsettings)
 	return frame
 end
 
