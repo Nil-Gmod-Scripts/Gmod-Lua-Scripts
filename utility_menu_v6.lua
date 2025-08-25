@@ -11,7 +11,7 @@ concommand.Remove("open_utility_menu")
 concommand.Remove("toggle_freecam")
 
 globalvalues = globalvalues or {
-	scriptran = false, freecamtoggle = false, freecampos=Vector(0, 0, 0), freecamang = Angle(0, 0, 0),
+	scriptran = false, freecamtoggle = false, freecampos = Vector(0, 0, 0), freecamang = Angle(0, 0, 0),
 	frozenplayerviewang = Angle(0, 0, 0), lastupdate = 0
 }
 
@@ -65,14 +65,10 @@ hook.Add("CreateMove", "autobhop and freecam", function(cmd)
 		hook.Remove("CalcView", "freecamview")
 		hook.Remove("PlayerBindPress", "freecamblockkeys")
 	elseif settings.freecam and globalvalues.freecamtoggle and not vgui.GetKeyboardFocus() and not gui.IsGameUIVisible() then
-		local mousex, mousey = cmd:GetMouseX(), cmd:GetMouseY()
 		local basespeed = math.Clamp(cookie.GetNumber("basespeed", 1), 1, 100)
-		local speed = (input.IsKeyDown(KEY_LSHIFT) and basespeed * 10 or basespeed / 3)
 		local wishmove = Vector()
-		local pitchsens = GetConVar("m_pitch"):GetFloat()
-		local yawsens = GetConVar("m_yaw"):GetFloat()
-		globalvalues.freecamang.p = math.Clamp(globalvalues.freecamang.p + mousey * pitchsens, -89, 89)
-		globalvalues.freecamang.y = globalvalues.freecamang.y - mousex * yawsens
+		globalvalues.freecamang.p = math.Clamp(globalvalues.freecamang.p + cmd:GetMouseY() * GetConVar("m_pitch"):GetFloat(), -89, 89)
+		globalvalues.freecamang.y = globalvalues.freecamang.y - cmd:GetMouseX() * GetConVar("m_yaw"):GetFloat()
 		if input.IsKeyDown(KEY_W) then wishmove = wishmove + globalvalues.freecamang:Forward() end
 		if input.IsKeyDown(KEY_S) then wishmove = wishmove - globalvalues.freecamang:Forward() end
 		if input.IsKeyDown(KEY_D) then wishmove = wishmove + globalvalues.freecamang:Right() end
@@ -81,16 +77,15 @@ hook.Add("CreateMove", "autobhop and freecam", function(cmd)
 		if input.IsKeyDown(KEY_LCONTROL) then wishmove = wishmove - globalvalues.freecamang:Up()end
 		if wishmove:LengthSqr() > 0 then
 			wishmove:Normalize()
-			globalvalues.freecampos = globalvalues.freecampos + wishmove * speed
+			globalvalues.freecampos = globalvalues.freecampos + wishmove * (input.IsKeyDown(KEY_LSHIFT) and basespeed * 10 or basespeed / 3)
 		end
-		cmd:ClearButtons()
-		cmd:ClearMovement()
 		cmd:SetViewAngles(globalvalues.frozenplayerviewang)
 		hook.Add("PlayerBindPress", "freecamblockkeys", function(ply, bind, pressed)
 			if globalvalues.freecamtoggle then
-				if string.find(bind, "noclip") or string.find(bind, "impulse 100") or string.find(bind, "impulse 201") then
-					return true
+				if string.find(bind, "toggle_freecam") then
+					return false
 				end
+				return true
 			end
 		end)
 	end
