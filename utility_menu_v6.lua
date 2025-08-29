@@ -6,6 +6,7 @@ hook.Remove("PlayerBindPress", "freecamblockkeys")
 hook.Remove("PostDrawOpaqueRenderables", "drawentityboxes")
 hook.Remove("PostDrawTranslucentRenderables", "drawcursorlines")
 hook.Remove("HUDPaint", "drawinfo")
+hook.Remove("CalcView", "noshake")
 
 concommand.Remove("open_utility_menu")
 concommand.Remove("toggle_freecam")
@@ -58,59 +59,63 @@ end)
 
 hook.Add("CreateMove", "autobhop and freecam", function(cmd)
 	local ply = LocalPlayer()
-	if settings.autobhop and cmd:KeyDown(IN_JUMP) and not ply:IsOnGround() and ply:WaterLevel() <= 1 and ply:GetMoveType() ~= MOVETYPE_NOCLIP then
-		cmd:RemoveKey(IN_JUMP)
-	elseif not settings.freecam and globalvalues.freecamtoggle then
-		globalvalues.freecamtoggle = false
-		hook.Remove("CalcView", "freecamview")
-		hook.Remove("PlayerBindPress", "freecamblockkeys")
-	elseif settings.freecam and globalvalues.freecamtoggle and not vgui.GetKeyboardFocus() and not gui.IsGameUIVisible() then
-		local basespeed = math.Clamp(cookie.GetNumber("basespeed", 1), 1, 100)
-		local wishmove = Vector()
-		globalvalues.freecamang.p = math.Clamp(globalvalues.freecamang.p + cmd:GetMouseY() * GetConVar("m_pitch"):GetFloat(), -89, 89)
-		globalvalues.freecamang.y = globalvalues.freecamang.y - cmd:GetMouseX() * GetConVar("m_yaw"):GetFloat()
-		if input.IsKeyDown(KEY_W) then wishmove = wishmove + globalvalues.freecamang:Forward() end
-		if input.IsKeyDown(KEY_S) then wishmove = wishmove - globalvalues.freecamang:Forward() end
-		if input.IsKeyDown(KEY_D) then wishmove = wishmove + globalvalues.freecamang:Right() end
-		if input.IsKeyDown(KEY_A) then wishmove = wishmove - globalvalues.freecamang:Right() end
-		if input.IsKeyDown(KEY_SPACE) then wishmove = wishmove + globalvalues.freecamang:Up() end
-		if input.IsKeyDown(KEY_LCONTROL) then wishmove = wishmove - globalvalues.freecamang:Up()end
-		if wishmove:LengthSqr() > 0 then
-			wishmove:Normalize()
-			globalvalues.freecampos = globalvalues.freecampos + wishmove * (input.IsKeyDown(KEY_LSHIFT) and basespeed * 10 or basespeed / 3)
-		end
-		cmd:SetViewAngles(globalvalues.frozenplayerviewang)
-		hook.Add("PlayerBindPress", "freecamblockkeys", function(ply, bind, pressed)
-			if globalvalues.freecamtoggle then
-				if string.find(bind, "toggle_freecam") then
-					return false
-				end
-				return true
+	local basespeed = math.Clamp(cookie.GetNumber("basespeed", 3), 1, 50)
+	local wishmove = Vector()
+	if settings.autobhop or settings.freecam then
+		if settings.autobhop and cmd:KeyDown(IN_JUMP) and not ply:IsOnGround() and ply:WaterLevel() <= 1 and ply:GetMoveType() ~= MOVETYPE_NOCLIP then
+			cmd:RemoveKey(IN_JUMP)
+		elseif not settings.freecam and globalvalues.freecamtoggle then
+			globalvalues.freecamtoggle = false
+			hook.Remove("CalcView", "freecamview")
+			hook.Remove("PlayerBindPress", "freecamblockkeys")
+		elseif settings.freecam and globalvalues.freecamtoggle and not vgui.GetKeyboardFocus() and not gui.IsGameUIVisible() then
+			globalvalues.freecamang.p = math.Clamp(globalvalues.freecamang.p + cmd:GetMouseY() * GetConVar("m_pitch"):GetFloat(), -89, 89)
+			globalvalues.freecamang.y = globalvalues.freecamang.y - cmd:GetMouseX() * GetConVar("m_yaw"):GetFloat()
+			if input.IsKeyDown(KEY_W) then wishmove = wishmove + globalvalues.freecamang:Forward() end
+			if input.IsKeyDown(KEY_S) then wishmove = wishmove - globalvalues.freecamang:Forward() end
+			if input.IsKeyDown(KEY_D) then wishmove = wishmove + globalvalues.freecamang:Right() end
+			if input.IsKeyDown(KEY_A) then wishmove = wishmove - globalvalues.freecamang:Right() end
+			if input.IsKeyDown(KEY_SPACE) then wishmove = wishmove + globalvalues.freecamang:Up() end
+			if input.IsKeyDown(KEY_LCONTROL) then wishmove = wishmove - globalvalues.freecamang:Up()end
+			if wishmove:LengthSqr() > 0 then
+				wishmove:Normalize()
+				globalvalues.freecampos = globalvalues.freecampos + wishmove * (input.IsKeyDown(KEY_LSHIFT) and basespeed * 10 or basespeed / 3)
 			end
-		end)
+			cmd:SetViewAngles(globalvalues.frozenplayerviewang)
+			hook.Add("PlayerBindPress", "freecamblockkeys", function(ply, bind, pressed)
+				if globalvalues.freecamtoggle then
+					if string.find(bind, "toggle_freecam") or string.find(bind, "messagemode") then
+						return false
+					end
+					return true
+				end
+			end)
+		end
 	end
 end)
 
 hook.Add("PostDrawOpaqueRenderables", "drawentityboxes", function()
 	local ply = LocalPlayer()
-	if settings.propbox then
-		for _, ent in ipairs(entitycaches.props or {}) do
-			if IsValid(ent) then
-				render.DrawWireframeBox(ent:GetPos(), ent:GetAngles(), ent:OBBMins(), ent:OBBMaxs(), colors.cyan, false)
+	if settings.propbox or settings.npcbox or settings.playerbox then
+		if settings.propbox then
+			for _, ent in ipairs(entitycaches.props or {}) do
+				if IsValid(ent) then
+					render.DrawWireframeBox(ent:GetPos(), ent:GetAngles(), ent:OBBMins(), ent:OBBMaxs(), colors.cyan, false)
+				end
 			end
 		end
-	end
-	if settings.npcbox then
-		for _, ent in ipairs(entitycaches.npcs or {}) do
-			if IsValid(ent) and ent:Alive() then
-				render.DrawWireframeBox(ent:GetPos(), Angle(0, 0, 0), ent:OBBMins(), ent:OBBMaxs(), colors.red, false)
+		if settings.npcbox then
+			for _, ent in ipairs(entitycaches.npcs or {}) do
+				if IsValid(ent) and ent:Alive() then
+					render.DrawWireframeBox(ent:GetPos(), Angle(0, 0, 0), ent:OBBMins(), ent:OBBMaxs(), colors.red, false)
+				end
 			end
 		end
-	end
-	if settings.playerbox then
-		for _, ent in ipairs(entitycaches.players or {}) do
-			if IsValid(ent) and ent:Alive() then
-				render.DrawWireframeBox(ent:GetPos(), Angle(0, 0, 0), ent:OBBMins(), ent:OBBMaxs(), colors.yellow, false)
+		if settings.playerbox then
+			for _, ent in ipairs(entitycaches.players or {}) do
+				if IsValid(ent) and ent:Alive() then
+					render.DrawWireframeBox(ent:GetPos(), Angle(0, 0, 0), ent:OBBMins(), ent:OBBMaxs(), colors.yellow, false)
+				end
 			end
 		end
 	end
@@ -118,21 +123,24 @@ end)
 
 hook.Add("PostDrawTranslucentRenderables", "drawcursorlines", function()
 	local ply = LocalPlayer()
-	if not ply:Alive() or ply:ShouldDrawLocalPlayer() then return end
 	local startpos = ply:EyePos() + ply:GetAimVector() * 50
-	if settings.npcline then
-		for _, ent in ipairs(entitycaches.npcs or {}) do
-			if IsValid(ent) and ent:Alive() then
-				local endpos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
-				render.DrawLine(startpos, endpos, colors.red, false)
+	if settings.npcline or settings.playerline then
+		if ply:Alive() and not ply:ShouldDrawLocalPlayer() then
+			if settings.npcline then
+				for _, ent in ipairs(entitycaches.npcs or {}) do
+					if IsValid(ent) and ent:Alive() then
+						local endpos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
+						render.DrawLine(startpos, endpos, colors.red, false)
+					end
+				end
 			end
-		end
-	end
-	if settings.playerline then
-		for _, ent in ipairs(entitycaches.players or {}) do
-			if IsValid(ent) and ent:Alive() then
-				local endpos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
-				render.DrawLine(startpos, endpos, colors.yellow, false)
+			if settings.playerline then
+				for _, ent in ipairs(entitycaches.players or {}) do
+					if IsValid(ent) and ent:Alive() then
+						local endpos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
+						render.DrawLine(startpos, endpos, colors.yellow, false)
+					end
+				end
 			end
 		end
 	end
@@ -141,76 +149,89 @@ end)
 hook.Add("HUDPaint", "drawinfo", function()
 	local ply = LocalPlayer()
 	local sw, sh = ScrW(), ScrH()
-	if settings.clientinfo and ply:Alive() then
-		draw.SimpleText("Speed:" .. math.Round(ply:GetVelocity():Length()) .. "u/s", "BudgetLabel", sw / 2, sh / 2 + 75, colors.white, TEXT_ALIGN_CENTER)
-		draw.SimpleText("FPS:" .. math.floor(1 / FrameTime()), "BudgetLabel", sw / 2, sh / 2 + 87, colors.white, TEXT_ALIGN_CENTER)
+	if settings.clientinfo or settings.npcinfo or settings.playerinfo or settings.minimap then
+		if settings.clientinfo and ply:Alive() then
+			draw.SimpleText("Speed:" .. math.Round(ply:GetVelocity():Length()) .. "u/s", "BudgetLabel", sw / 2, sh / 2 + 75, colors.white, TEXT_ALIGN_CENTER)
+			draw.SimpleText("FPS:" .. math.floor(1 / FrameTime()), "BudgetLabel", sw / 2, sh / 2 + 87, colors.white, TEXT_ALIGN_CENTER)
+		end
+		if settings.npcinfo then
+			for _, ent in ipairs(entitycaches.npcs or {}) do
+				if IsValid(ent) and ent:Alive() then
+					local pos = ent:EyePos():ToScreen()
+					draw.SimpleText(ent:GetClass(), "BudgetLabel", pos.x, pos.y - 12, colors.red, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+					draw.SimpleText("HP:" .. ent:Health(), "BudgetLabel", pos.x, pos.y, colors.red, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				end
+			end
+		end
+		if settings.playerinfo then
+			for _, ent in ipairs(entitycaches.players or {}) do
+				if IsValid(ent) and ent:Alive() then
+					local pos = ent:EyePos():ToScreen()
+					local text = "HP:" .. ent:Health()
+					if ent:Armor() > 0 then
+						text = text .. "|AP:" .. ent:Armor()
+					end
+					draw.SimpleText(ent:Nick(), "BudgetLabel", pos.x, pos.y - 12, colors.yellow, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+					draw.SimpleText(text, "BudgetLabel", pos.x, pos.y, colors.yellow, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				end
+			end
+		end
+		if settings.minimap then
+			local function worldtomini(pos, yaw, scale, radius)
+				local delta = pos - EyePos()
+				local angle = math.rad(-yaw - 90)
+				local x = -(delta.x * math.cos(angle) - delta.y * math.sin(angle))
+				local y =  delta.x * math.sin(angle) + delta.y * math.cos(angle)
+				x = x / scale
+				y = y / scale
+				x = math.Clamp(x, -radius, radius)
+				y = math.Clamp(y, -radius, radius)
+				return x, y
+			end
+			local ply = LocalPlayer()
+			if not IsValid(ply) then return end
+			local size  = ({150, 200, 250, 300, 400})[math.Clamp(cookie.GetNumber("mapsize", 1), 1, 5)]
+			local scale = ({25, 50, 75, 100, 125})[math.Clamp(cookie.GetNumber("mapscale", 1), 1, 5)]
+			local posindex = math.Clamp(cookie.GetNumber("mappos", 1), 1, 4)
+			local radius = size / 2
+			local corners = {
+				{x=16+radius, y=16+radius}, {x=sw-16-radius, y=16+radius},
+				{x=16+radius, y=sh-16-radius}, {x=sw-16-radius, y=sh-16-radius}
+			}
+			local cx, cy = corners[posindex].x, corners[posindex].y
+			local yaw = EyeAngles().y
+			draw.NoTexture()
+			surface.SetDrawColor(0, 0, 0, 225)
+			surface.DrawRect(cx - radius, cy - radius, radius * 2, radius * 2)
+			for _, ent in ipairs(entitycaches.npcs or {}) do
+				if IsValid(ent) and ent:Alive() then
+					local sx, sy = worldtomini(ent:GetPos(), yaw, scale, radius)
+					surface.SetDrawColor(255, 0, 0)
+					surface.DrawRect(cx + sx - 2, cy + sy - 2, 4, 4)
+				end
+			end
+			for _, ent in ipairs(entitycaches.players or {}) do
+				if IsValid(ent) and ent ~= ply and ent:Alive() then
+					local sx, sy = worldtomini(ent:GetPos(), yaw, scale, radius)
+					surface.SetDrawColor(255, 255, 0)
+					surface.DrawRect(cx + sx - 2, cy + sy - 2, 4, 4)
+					draw.SimpleText(ent:Nick(), "BudgetLabel", cx + sx, cy + sy, colors.yellow, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				end
+			end
+			surface.SetDrawColor(0, 255, 0)
+			surface.DrawLine(cx, cy - 4, cx - 4, cy + 4)
+			surface.DrawLine(cx, cy - 4, cx + 4, cy + 4)
+			surface.DrawLine(cx - 4, cy + 4, cx + 4, cy + 4)
+		end
 	end
-	if settings.npcinfo then
-		for _, ent in ipairs(entitycaches.npcs or {}) do
-			if IsValid(ent) and ent:Alive() then
-				local pos = ent:EyePos():ToScreen()
-				draw.SimpleText(ent:GetClass(), "BudgetLabel", pos.x, pos.y - 12, colors.red, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
-				draw.SimpleText("HP:" .. ent:Health(), "BudgetLabel", pos.x, pos.y, colors.red, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
-			end
-		end
-	end
-	if settings.playerinfo then
-		for _, ent in ipairs(entitycaches.players or {}) do
-			if IsValid(ent) and ent:Alive() then
-				local pos = ent:EyePos():ToScreen()
-				draw.SimpleText(ent:Nick(), "BudgetLabel", pos.x, pos.y - 12, colors.yellow, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
-				local text = "HP:" .. ent:Health()
-				if ent:Armor() > 0 then text = text .. "|AP:" .. ent:Armor() end
-				draw.SimpleText(text, "BudgetLabel", pos.x, pos.y, colors.yellow, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
-			end
-		end
-	end
-	if settings.minimap then
-		local function worldtomini(pos, yaw, scale, radius)
-			local delta = pos - EyePos()
-			local angle = math.rad(-yaw - 90)
-			local x = -(delta.x * math.cos(angle) - delta.y * math.sin(angle))
-			local y =  delta.x * math.sin(angle) + delta.y * math.cos(angle)
-			x = x / scale
-			y = y / scale
-			x = math.Clamp(x, -radius, radius)
-			y = math.Clamp(y, -radius, radius)
-			return x, y
-		end
-		local ply = LocalPlayer()
-		if not IsValid(ply) then return end
-		local size  = ({150, 200, 250, 300, 400})[math.Clamp(cookie.GetNumber("mapsize", 1), 1, 5)]
-		local scale = ({25, 50, 75, 100, 125})[math.Clamp(cookie.GetNumber("mapscale", 1), 1, 5)]
-		local posindex = math.Clamp(cookie.GetNumber("mappos", 1), 1, 4)
-		local radius = size / 2
-		local corners = {
-			{x=16+radius, y=16+radius}, {x=sw-16-radius, y=16+radius},
-			{x=16+radius, y=sh-16-radius}, {x=sw-16-radius, y=sh-16-radius}
-		}
-		local cx, cy = corners[posindex].x, corners[posindex].y
-		local yaw = EyeAngles().y
-		draw.NoTexture()
-		surface.SetDrawColor(0, 0, 0, 225)
-		surface.DrawRect(cx - radius, cy - radius, radius * 2, radius * 2)
-		for _, ent in ipairs(entitycaches.npcs or {}) do
-			if IsValid(ent) and ent:Alive() then
-				local sx, sy = worldtomini(ent:GetPos(), yaw, scale, radius)
-				surface.SetDrawColor(255, 0, 0)
-				surface.DrawRect(cx + sx - 2, cy + sy - 2, 4, 4)
-			end
-		end
-		for _, ent in ipairs(entitycaches.players or {}) do
-			if IsValid(ent) and ent ~= ply and ent:Alive() then
-				local sx, sy = worldtomini(ent:GetPos(), yaw, scale, radius)
-				surface.SetDrawColor(255, 255, 0)
-				surface.DrawRect(cx + sx - 2, cy + sy - 2, 4, 4)
-				draw.SimpleText(ent:Nick(), "BudgetLabel", cx + sx, cy + sy, colors.yellow, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
-			end
-		end
-		surface.SetDrawColor(0, 255, 0)
-		surface.DrawLine(cx, cy - 4, cx - 4, cy + 4)
-		surface.DrawLine(cx, cy - 4, cx + 4, cy + 4)
-		surface.DrawLine(cx - 4, cy + 4, cx + 4, cy + 4)
+end)
+
+hook.Add("CalcView", "noshake", function(ply, pos, angles, fov)
+	if settings.noshake and not ply:ShouldDrawLocalPlayer() and not ply:InVehicle() and not globalvalues.freecamtoggle then
+		local angs = ply:EyeAngles()
+		local noshakefov = math.Clamp(cookie.GetNumber("noshakefov", 120), 80, 170)
+		angs.r = 0
+		return {origin = pos, angles = angs, fov = noshakefov}
 	end
 end)
 
@@ -291,7 +312,6 @@ end
 local function createmenu()
 	local frame = vgui.Create("DFrame")
 	local tab = vgui.Create("DPropertySheet", frame)
-	local scrollinfo = vgui.Create("DScrollPanel", tab)
 	local scrollutility = vgui.Create("DScrollPanel", tab)
 	local scrolldisplay = vgui.Create("DScrollPanel", tab)
 	local scrollsettings = vgui.Create("DScrollPanel", tab)
@@ -302,22 +322,19 @@ local function createmenu()
 	frame:SetVisible(false)
 	tab:Dock(FILL)
 	tab:SetFadeTime(0)
-	tab:AddSheet("Info", scrollinfo, "icon16/book.png")
 	tab:AddSheet("Utility", scrollutility, "icon16/wrench.png")
 	tab:AddSheet("Display", scrolldisplay, "icon16/monitor.png")
 	tab:AddSheet("Settings", scrollsettings, "icon16/cog.png")
-	createlabel("Welcome!", scrollinfo)
-	createmessage("This Lua script was made for me and a friend, but mainly for me. It adds a lot of fun and useful features, like a auto bhop, freecam, minimap, and ESP for NPCs, props, and players.", scrollinfo)
-	createmessage("Go NUTS!", scrollinfo)
 	createlabel("Miscellaneous options:", scrollutility)
 	createcheckbox("Auto bhop", "autobhop",  scrollutility)
 	createcheckbox("Toggle freecam", "freecam", scrollutility)
+	createcheckbox("Toggle no shake", "noshake", scrollutility)
 	createlabel("Player gestures:", scrollutility)
 	createbuttongrid(acts, function(act) RunConsoleCommand("act", act) end, scrollutility)
 	createlabel("Miscellaneous options:", scrolldisplay)
 	createcheckbox("Draw client info", "clientinfo",  scrolldisplay)
-	createcheckbox("Draw prop boxes", "propbox", scrolldisplay)
 	createcheckbox("Show minimap", "minimap", scrolldisplay)
+	createcheckbox("Draw prop boxes", "propbox", scrolldisplay)
 	createlabel("NPC options:", scrolldisplay)
 	createcheckbox("Draw NPC boxes", "npcbox", scrolldisplay)
 	createcheckbox("Draw NPC lines", "npcline", scrolldisplay)
@@ -326,12 +343,14 @@ local function createmenu()
 	createcheckbox("Draw player boxes", "playerbox", scrolldisplay)
 	createcheckbox("Draw player lines", "playerline", scrolldisplay)
 	createcheckbox("Draw player info", "playerinfo", scrolldisplay)
-	createlabel("Map settings:", scrollsettings)
-	createslider("Map size:", 1, 5, "mapsize", scrollsettings)
-	createslider("Map scale:", 1, 5, "mapscale", scrollsettings)
-	createslider("Map pos:", 1, 4, "mappos", scrollsettings)
 	createlabel("Free cam:", scrollsettings)
-	createslider("Free cam speed:", 1, 100, "basespeed", scrollsettings)
+	createslider("Speed:", 1, 50, "basespeed", scrollsettings)
+	createlabel("No shake:", scrollsettings)
+	createslider("FOV", 80, 170, "noshakefov", scrollsettings)
+	createlabel("Map settings:", scrollsettings)
+	createslider("Size:", 1, 5, "mapsize", scrollsettings)
+	createslider("Scale:", 1, 5, "mapscale", scrollsettings)
+	createslider("Pos:", 1, 4, "mappos", scrollsettings)
 	return frame
 end
 
@@ -354,9 +373,10 @@ concommand.Add("toggle_freecam", function()
 		else
 			local ply = LocalPlayer()
 			globalvalues.freecamtoggle = true
-			globalvalues.freecampos, globalvalues.freecamang = ply:EyePos(), ply:EyeAngles()
+			globalvalues.freecampos = EyePos()
+			globalvalues.freecamang = EyeAngles()
 			globalvalues.frozenplayerviewang = ply:EyeAngles()
-			hook.Add("CalcView", "freecamview", function(_,_,_,fov)
+			hook.Add("CalcView", "freecamview", function(_ , _, _, fov)
 				return {origin = globalvalues.freecampos, angles = globalvalues.freecamang, fov = fov, drawviewer = true}
 			end)
 		end
