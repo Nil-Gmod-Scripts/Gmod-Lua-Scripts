@@ -84,7 +84,7 @@ hook.Add("CreateMove", "autobhop and freecam", function(cmd)
 			cmd:SetViewAngles(globalvalues.frozenplayerviewang)
 			hook.Add("PlayerBindPress", "freecamblockkeys", function(ply, bind, pressed)
 				if globalvalues.freecamtoggle then
-					if string.find(bind, "toggle_freecam") or string.find(bind, "messagemode") then
+					if string.find(bind, "toggle_freecam") or string.find(bind, "messagemode") or string.find(bind, "+showscores") then
 						return false
 					end
 					return true
