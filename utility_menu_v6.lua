@@ -64,10 +64,6 @@ hook.Add("CreateMove", "autobhop and freecam", function(cmd)
 	if settings.autobhop or settings.freecam then
 		if settings.autobhop and cmd:KeyDown(IN_JUMP) and not ply:IsOnGround() and ply:WaterLevel() <= 1 and ply:GetMoveType() ~= MOVETYPE_NOCLIP then
 			cmd:RemoveKey(IN_JUMP)
-		elseif not settings.freecam and globalvalues.freecamtoggle then
-			globalvalues.freecamtoggle = false
-			hook.Remove("CalcView", "freecamview")
-			hook.Remove("PlayerBindPress", "freecamblockkeys")
 		elseif settings.freecam and globalvalues.freecamtoggle and not vgui.GetKeyboardFocus() and not gui.IsGameUIVisible() then
 			globalvalues.freecamang.p = math.Clamp(globalvalues.freecamang.p + cmd:GetMouseY() * GetConVar("m_pitch"):GetFloat(), -89, 89)
 			globalvalues.freecamang.y = globalvalues.freecamang.y - cmd:GetMouseX() * GetConVar("m_yaw"):GetFloat()
@@ -83,14 +79,17 @@ hook.Add("CreateMove", "autobhop and freecam", function(cmd)
 			end
 			cmd:SetViewAngles(globalvalues.frozenplayerviewang)
 			hook.Add("PlayerBindPress", "freecamblockkeys", function(ply, bind, pressed)
-				if globalvalues.freecamtoggle then
-					if string.find(bind, "toggle_freecam") or string.find(bind, "messagemode") or string.find(bind, "+showscores") or string.find(bind, "open_utility_menu") then
-						return false
-					end
-					return true
+				if string.find(bind, "toggle_freecam") or string.find(bind, "messagemode") or string.find(bind, "+showscores") or string.find(bind, "open_utility_menu") then
+					return false
 				end
+				return true
 			end)
 		end
+	end
+	if not settings.freecam and globalvalues.freecamtoggle then
+		globalvalues.freecamtoggle = false
+		hook.Remove("CalcView", "freecamview")
+		hook.Remove("PlayerBindPress", "freecamblockkeys")
 	end
 end)
 
