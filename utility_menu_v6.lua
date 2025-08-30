@@ -77,6 +77,7 @@ hook.Add("CreateMove", "autobhop and freecam", function(cmd)
 				wishmove:Normalize()
 				globalvalues.freecampos = globalvalues.freecampos + wishmove * (input.IsKeyDown(KEY_LSHIFT) and basespeed * 10 or basespeed / 3)
 			end
+			cmd:SetViewAngles(globalvalues.frozenplayerviewang)
 		end
 	end
 	if not settings.freecam and globalvalues.freecamtoggle then
@@ -372,7 +373,6 @@ concommand.Add("toggle_freecam", function()
 			hook.Add("CalcView", "freecamview", function(_ , _, _, fov)
 				return {origin = globalvalues.freecampos, angles = globalvalues.freecamang, fov = fov, drawviewer = true}
 			end)
-			cmd:SetViewAngles(globalvalues.frozenplayerviewang)
 			hook.Add("PlayerBindPress", "freecamblockkeys", function(ply, bind, pressed)
 				if string.find(bind, "toggle_freecam") or string.find(bind, "messagemode") or string.find(bind, "+showscores") or string.find(bind, "open_utility_menu") then
 					return false
