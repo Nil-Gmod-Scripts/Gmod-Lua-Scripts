@@ -1,7 +1,7 @@
 if SERVER then return end
 
 hook.Remove("Think", "updatecache")
-hook.Remove("CreateMove", "autobhop and freecam")
+hook.Remove("CreateMove", "autobhopandfreecam")
 hook.Remove("PlayerBindPress", "freecamblockkeys")
 hook.Remove("PostDrawOpaqueRenderables", "drawentityboxes")
 hook.Remove("PostDrawTranslucentRenderables", "drawcursorlines")
@@ -57,7 +57,7 @@ hook.Add("Think", "updatecache", function()
 	end
 end)
 
-hook.Add("CreateMove", "autobhop and freecam", function(cmd)
+hook.Add("CreateMove", "autobhopandfreecam", function(cmd)
 	local ply = LocalPlayer()
 	local basespeed = math.Clamp(cookie.GetNumber("basespeed", 3), 1, 50)
 	local wishmove = Vector()
@@ -221,8 +221,8 @@ end)
 
 hook.Add("CalcView", "noshake", function(ply, pos, angles, fov)
 	if settings.noshake and not ply:ShouldDrawLocalPlayer() and not ply:InVehicle() and not globalvalues.freecamtoggle then
-		local angs = ply:EyeAngles()
 		local noshakefov = math.Clamp(cookie.GetNumber("noshakefov", 120), 80, 170)
+		local angs = ply:EyeAngles()
 		angs.r = 0
 		return {origin = pos, angles = angs, fov = noshakefov}
 	end
@@ -236,19 +236,6 @@ local function createlabel(text, parent)
 	label:SizeToContents()
 	label:Dock(TOP)
 	label:DockMargin(5, 5, 0, 0)
-	return label
-end
-
-local function createmessage(text, parent)
-	local label = vgui.Create("DLabel", parent)
-	label:SetText(text)
-	label:SetFont("DermaDefault")
-	label:SetTextColor(colors.white)
-	label:SetWrap(true)
-	label:SetAutoStretchVertical(true)
-	label:Dock(TOP)
-	label:DockMargin(10, 5, 0, 0)
-	label:SetWidth(parent:GetWide() - 20)
 	return label
 end
 
