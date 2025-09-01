@@ -200,13 +200,6 @@ hook.Add("HUDPaint", "drawinfo", function()
 			end
 			surface.SetDrawColor(0, 0, 0, 225)
 			surface.DrawRect(cx - radius, cy - radius, radius * 2, radius * 2)
-			for _, ent in ipairs(entitycaches.props or {}) do -- temp
-				if IsValid(ent) then
-					local sx, sy = worldtomini(ent:GetPos(), yaw, scale, radius)
-					surface.SetDrawColor(180, 0, 180)
-					surface.DrawRect(cx + sx - 2, cy + sy - 2, 4, 4)
-				end
-			end
 			for _, ent in ipairs(entitycaches.npcs or {}) do
 				if IsValid(ent) and ent:Alive() then
 					local sx, sy = worldtomini(ent:GetPos(), yaw, scale, radius)
