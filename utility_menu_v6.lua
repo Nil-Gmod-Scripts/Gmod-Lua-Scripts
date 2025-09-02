@@ -99,7 +99,7 @@ hook.Add("PostDrawOpaqueRenderables", "drawentityboxes", function()
 		if settings.propbox then
 			for _, ent in ipairs(entitycaches.props or {}) do
 				if IsValid(ent) then
-					render.DrawWireframeBox(ent:GetPos(), ent:GetAngles(), ent:OBBMins(), ent:OBBMaxs(), colors.purple, false)
+					render.DrawWireframeBox(ent:GetPos(), ent:GetAngles(), ent:OBBMins(), ent:OBBMaxs(), colors.cyan, false)
 				end
 			end
 		end
