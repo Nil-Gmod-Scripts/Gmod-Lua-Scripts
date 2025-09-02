@@ -224,21 +224,13 @@ hook.Add("HUDPaint", "drawinfo", function()
 end)
 
 hook.Add("CalcView", "noshake", function(ply, pos, angles, fov)
+	local noshakefov = math.Clamp(cookie.GetNumber("noshakefov", 120), 80, 170)
+	local angs = ply:EyeAngles()
 	if settings.noshake and not ply:ShouldDrawLocalPlayer() and not ply:InVehicle() and not globalvalues.freecamtoggle then
-		local noshakefov = math.Clamp(cookie.GetNumber("noshakefov", 120), 80, 170)
-		local angs = ply:EyeAngles()
 		angs.r = 0
 		return {origin = pos, angles = angs, fov = noshakefov}
 	end
 end)
-
-if settings.norecoil then
-    local OEyeAngles = FindMetaTable("Player").SetEyeAngles
-    FindMetaTable("Player").SetEyeAngles = function(self, angle)
-        if string.find(string.lower(debug.getinfo(2).short_src), "/weapons/") then return end
-        OEyeAngles(self, angle)
-    end
-end
 
 local function createlabel(text, parent)
 	local label = vgui.Create("DLabel", parent)
@@ -321,7 +313,6 @@ local function createmenu()
 	createcheckbox("Auto bhop", "autobhop",  scrollutility)
 	createcheckbox("Toggle freecam", "freecam", scrollutility)
 	createcheckbox("Toggle no shake", "noshake", scrollutility)
-	createcheckbox("Toggle no recoil", "norecoil", scrollutility)
 	createlabel("Player gestures:", scrollutility)
 	createbuttongrid(acts, function(act) RunConsoleCommand("act", act) end, scrollutility)
 	createlabel("Miscellaneous options:", scrolldisplay)
@@ -366,8 +357,8 @@ concommand.Add("toggle_freecam", function()
 			hook.Remove("PlayerBindPress", "freecamblockkeys")
 		else
 			globalvalues.freecamtoggle = true
-			globalvalues.freecampos = EyePos()
-			globalvalues.freecamang = EyeAngles()
+			globalvalues.freecampos = LocalPlayer():EyePos()
+			globalvalues.freecamang = LocalPlayer():EyeAngles()
 			globalvalues.frozenplayerviewang = LocalPlayer():EyeAngles()
 			hook.Add("CalcView", "freecamview", function(_ , _, _, fov)
 				return {origin = globalvalues.freecampos, angles = globalvalues.freecamang, fov = fov, drawviewer = true}
