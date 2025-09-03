@@ -48,6 +48,11 @@ end)
 hook.Add("CreateMove", "autobhopandfreecam", function(cmd)
 	local ply = LocalPlayer()
 	local wishmove, basespeed = Vector(), math.Clamp(cookie.GetNumber("basespeed", 3), 1, 50)
+	if not settings.freecam and globalvalues.freecamtoggle then
+		globalvalues.freecamtoggle = false
+		hook.Remove("CalcView", "freecamview")
+		hook.Remove("PlayerBindPress", "freecamblockkeys")
+	end
 	if not (settings.autobhop or settings.freecam) then return end
 	if settings.autobhop and cmd:KeyDown(IN_JUMP) and not ply:IsOnGround() and ply:WaterLevel() <= 1 and ply:GetMoveType() ~= MOVETYPE_NOCLIP then
 		cmd:RemoveKey(IN_JUMP)
@@ -61,8 +66,8 @@ hook.Add("CreateMove", "autobhopandfreecam", function(cmd)
 		if input.IsKeyDown(KEY_SPACE) then wishmove = wishmove + globalvalues.freecamang:Up() end
 		if input.IsKeyDown(KEY_LCONTROL) then wishmove = wishmove - globalvalues.freecamang:Up() end
 		if wishmove:LengthSqr() > 0 then
-			wishmove:Normalize()
 			local speed = input.IsKeyDown(KEY_LSHIFT) and basespeed * 10 or basespeed
+			wishmove:Normalize()
 			globalvalues.freecampos = globalvalues.freecampos + wishmove * speed
 		end
 		cmd:SetViewAngles(globalvalues.frozenplayerviewang)
@@ -72,11 +77,6 @@ hook.Add("CreateMove", "autobhopandfreecam", function(cmd)
 			end
 			return true
 		end)
-	end
-	if not settings.freecam and globalvalues.freecamtoggle then
-		globalvalues.freecamtoggle = false
-		hook.Remove("CalcView", "freecamview")
-		hook.Remove("PlayerBindPress", "freecamblockkeys")
 	end
 end)
 
@@ -207,6 +207,14 @@ hook.Add("CalcView", "noshake", function(ply, pos, angles, fov)
 	return {origin = pos, angles = angs, fov = noshakefov}
 end)
 
+if settings.norecoil then
+	local orig = FindMetaTable("Player").SetEyeAngles
+	FindMetaTable("Player").SetEyeAngles = function(self, angle)
+		if( string.find(string.lower(debug.getinfo(2).short_src), "/weapons/")) then return end
+		orig(self, angle)
+	end
+end
+
 local function createLabel(text, parent)
 	local label = vgui.Create("DLabel", parent)
 	label:SetText(text)
@@ -271,9 +279,9 @@ end
 local function createMenu()
 	local frame = vgui.Create("DFrame")
 	local tab = vgui.Create("DPropertySheet", frame)
-	local scrollUtility = vgui.Create("DScrollPanel", tab)
-	local scrollDisplay = vgui.Create("DScrollPanel", tab)
-	local scrollSettings = vgui.Create("DScrollPanel", tab)
+	local scrollutility = vgui.Create("DScrollPanel", tab)
+	local scrolldisplay = vgui.Create("DScrollPanel", tab)
+	local scrollsettings = vgui.Create("DScrollPanel", tab)
 	frame:SetSize(300, 400)
 	frame:Center()
 	frame:SetTitle("Utility Menu V6")
@@ -281,35 +289,36 @@ local function createMenu()
 	frame:SetVisible(false)
 	tab:Dock(FILL)
 	tab:SetFadeTime(0)
-	tab:AddSheet("Utility", scrollUtility, "icon16/wrench.png")
-	tab:AddSheet("Display", scrollDisplay, "icon16/monitor.png")
-	tab:AddSheet("Settings", scrollSettings, "icon16/cog.png")
-	createLabel("Miscellaneous options:", scrollUtility)
-	createCheckbox("Auto bhop", "autobhop", scrollUtility)
-	createCheckbox("Toggle freecam", "freecam", scrollUtility)
-	createCheckbox("Toggle no shake", "noshake", scrollUtility)
-	createLabel("Player gestures:", scrollUtility)
-	createButtonGrid(acts, function(act) RunConsoleCommand("act", act) end, scrollUtility)
-	createLabel("Miscellaneous options:", scrollDisplay)
-	createCheckbox("Draw client info", "clientinfo", scrollDisplay)
-	createCheckbox("Show minimap", "minimap", scrollDisplay)
-	createCheckbox("Draw prop boxes", "propbox", scrollDisplay)
-	createLabel("NPC options:", scrollDisplay)
-	createCheckbox("Draw NPC boxes", "npcbox", scrollDisplay)
-	createCheckbox("Draw NPC lines", "npcline", scrollDisplay)
-	createCheckbox("Draw NPC info", "npcinfo", scrollDisplay)
-	createLabel("Player Options:", scrollDisplay)
-	createCheckbox("Draw player boxes", "playerbox", scrollDisplay)
-	createCheckbox("Draw player lines", "playerline", scrollDisplay)
-	createCheckbox("Draw player info", "playerinfo", scrollDisplay)
-	createLabel("Free cam:", scrollSettings)
-	createSlider("Speed:", 1, 50, "basespeed", scrollSettings)
-	createLabel("No shake:", scrollSettings)
-	createSlider("FOV", 80, 170, "noshakefov", scrollSettings)
-	createLabel("Map settings:", scrollSettings)
-	createSlider("Size:", 1, 5, "mapsize", scrollSettings)
-	createSlider("Scale:", 1, 5, "mapscale", scrollSettings)
-	createSlider("Pos:", 1, 4, "mappos", scrollSettings)
+	tab:AddSheet("Utility", scrollutility, "icon16/wrench.png")
+	tab:AddSheet("Display", scrolldisplay, "icon16/monitor.png")
+	tab:AddSheet("Settings", scrollsettings, "icon16/cog.png")
+	createLabel("Miscellaneous options:", scrollutility)
+	createCheckbox("Auto bhop", "autobhop", scrollutility)
+	createCheckbox("Toggle freecam", "freecam", scrollutility)
+	createCheckbox("Toggle no shake", "noshake", scrollutility)
+	createCheckbox("Toggle no recoil", "norecoil", scrollutility)
+	createLabel("Player gestures:", scrollutility)
+	createButtonGrid(acts, function(act) RunConsoleCommand("act", act) end, scrollutility)
+	createLabel("Miscellaneous options:", scrolldisplay)
+	createCheckbox("Draw client info", "clientinfo", scrolldisplay)
+	createCheckbox("Show minimap", "minimap", scrolldisplay)
+	createCheckbox("Draw prop boxes", "propbox", scrolldisplay)
+	createLabel("NPC options:", scrolldisplay)
+	createCheckbox("Draw NPC boxes", "npcbox", scrolldisplay)
+	createCheckbox("Draw NPC lines", "npcline", scrolldisplay)
+	createCheckbox("Draw NPC info", "npcinfo", scrolldisplay)
+	createLabel("Player Options:", scrolldisplay)
+	createCheckbox("Draw player boxes", "playerbox", scrolldisplay)
+	createCheckbox("Draw player lines", "playerline", scrolldisplay)
+	createCheckbox("Draw player info", "playerinfo", scrolldisplay)
+	createLabel("Free cam:", scrollsettings)
+	createSlider("Speed:", 1, 50, "basespeed", scrollsettings)
+	createLabel("No shake:", scrollsettings)
+	createSlider("FOV", 80, 170, "noshakefov", scrollsettings)
+	createLabel("Map settings:", scrollsettings)
+	createSlider("Size:", 1, 5, "mapsize", scrollsettings)
+	createSlider("Scale:", 1, 5, "mapscale", scrollsettings)
+	createSlider("Pos:", 1, 4, "mappos", scrollsettings)
 	return frame
 end
 
