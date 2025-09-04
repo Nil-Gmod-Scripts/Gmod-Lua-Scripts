@@ -10,13 +10,20 @@ hook.Remove("CalcView", "noshake")
 concommand.Remove("open_utility_menu")
 concommand.Remove("toggle_freecam")
 
-globalvalues = globalvalues or {scriptran = false, freecamtoggle = false, freecampos = Vector(0, 0, 0), freecamang = Angle(0, 0, 0), frozenplayerviewang = Angle(0, 0, 0), lastupdate = 0}
+globalvalues = globalvalues or {
+	scriptran = false, freecamtoggle = false, freecampos = Vector(0, 0, 0), freecamang = Angle(0, 0, 0), frozenplayerviewang = Angle(0, 0, 0), lastupdate = 0
+}
 
 entitycaches = entitycaches or {players = {}, npcs = {}, props = {}}
 
-local acts = {"agree", "becon", "bow", "cheer", "dance", "disagree", "forward", "group", "halt", "laugh", "muscle", "pers", "robot", "salute", "wave", "zombie"}
+acts = acts or {
+	"agree", "becon", "bow", "cheer", "dance", "disagree", "forward", "group", "halt", "laugh", "muscle", "pers", "robot", "salute", "wave", "zombie"
+}
 
-local colors = {white = Color(255, 255, 255), cyan = Color(0, 255, 255), red = Color(255, 0, 0), yellow = Color(255, 255, 0), green = Color(0, 255, 0), black = Color(0, 0, 0), purple = Color(180, 0, 180)}
+colors = colors or {
+	white = Color(255, 255, 255), cyan = Color(0, 255, 255), yellow = Color(255, 255, 0), green = Color(0, 255, 0), black = Color(0, 0, 0), purple = Color(180, 0, 180),
+	red = Color(255, 0, 0), green = Color(0, 255, 0), blue = Color(0, 0, 255)
+}
 
 settings = settings or {}
 
@@ -57,8 +64,12 @@ hook.Add("CreateMove", "autobhopandfreecam", function(cmd)
 	if settings.autobhop and cmd:KeyDown(IN_JUMP) and not ply:IsOnGround() and ply:WaterLevel() <= 1 and ply:GetMoveType() ~= MOVETYPE_NOCLIP then
 		cmd:RemoveKey(IN_JUMP)
 	elseif settings.freecam and globalvalues.freecamtoggle and not vgui.GetKeyboardFocus() and not gui.IsGameUIVisible() then
-		globalvalues.freecamang.p = math.Clamp(globalvalues.freecamang.p + cmd:GetMouseY() * GetConVar("m_pitch"):GetFloat(), -89, 89)
-		globalvalues.freecamang.y = globalvalues.freecamang.y - cmd:GetMouseX() * GetConVar("m_yaw"):GetFloat()
+		cmd:SetMouseX(0) 
+		cmd:SetMouseY(0)
+		local mouseDelta = cmd:GetViewAngles() - globalvalues.frozenplayerviewang
+		globalvalues.freecamang.p = math.Clamp(globalvalues.freecamang.p + mouseDelta.p, -89, 89)
+		globalvalues.freecamang.y = globalvalues.freecamang.y + mouseDelta.y
+		cmd:SetViewAngles(globalvalues.frozenplayerviewang)
 		if input.IsKeyDown(KEY_W) then wishmove = wishmove + globalvalues.freecamang:Forward() end
 		if input.IsKeyDown(KEY_S) then wishmove = wishmove - globalvalues.freecamang:Forward() end
 		if input.IsKeyDown(KEY_D) then wishmove = wishmove + globalvalues.freecamang:Right() end
@@ -70,7 +81,6 @@ hook.Add("CreateMove", "autobhopandfreecam", function(cmd)
 			wishmove:Normalize()
 			globalvalues.freecampos = globalvalues.freecampos + wishmove * speed
 		end
-		cmd:SetViewAngles(globalvalues.frozenplayerviewang)
 		hook.Add("PlayerBindPress", "freecamblockkeys", function(ply, bind, pressed)
 			if string.find(bind, "toggle_freecam") or string.find(bind, "messagemode") or string.find(bind, "+showscores") or string.find(bind, "open_utility_menu") then
 				return false
@@ -85,7 +95,7 @@ hook.Add("PostDrawOpaqueRenderables", "drawentityboxes", function()
 	if settings.propbox then
 		for _, ent in ipairs(entitycaches.props or {}) do
 			if IsValid(ent) then
-				render.DrawWireframeBox(ent:GetPos(), ent:GetAngles(), ent:OBBMins(), ent:OBBMaxs(), colors.cyan, false)
+				render.DrawWireframeBox(ent:GetPos(), ent:GetAngles(), ent:OBBMins(), ent:OBBMaxs(), colors.blue, false)
 			end
 		end
 	end
@@ -342,7 +352,7 @@ concommand.Add("toggle_freecam", function()
 		hook.Remove("PlayerBindPress", "freecamblockkeys")
 	else
 		globalvalues.freecamtoggle = true
-		globalvalues.freecampos = ply:EyePos()
+		globalvalues.freecampos = EyePos()
 		globalvalues.freecamang = ply:EyeAngles()
 		globalvalues.frozenplayerviewang = ply:EyeAngles()
 		hook.Add("CalcView", "freecamview", function(_, _, _, fov)
