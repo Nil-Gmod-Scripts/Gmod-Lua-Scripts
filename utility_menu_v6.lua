@@ -54,7 +54,7 @@ end)
 
 hook.Add("CreateMove", "autobhopandfreecam", function(cmd)
 	local ply = LocalPlayer()
-	local wishmove, basespeed = Vector(), math.Clamp(cookie.GetNumber("basespeed", 3), 1, 50)
+	local wishmove, basespeed = Vector(), cookie.GetNumber("basespeed", 3)
 	if not settings.freecam and globalvalues.freecamtoggle then
 		globalvalues.freecamtoggle = false
 		hook.Remove("CalcView", "freecamview")
@@ -177,14 +177,14 @@ hook.Add("HUDPaint", "drawinfo", function()
 		end
 	end
 	if settings.minimap then
-		local sizeValues = {150, 200, 250, 300, 400}
-		local scaleValues = {25, 50, 75, 100, 125}
-		local size = sizeValues[math.Clamp(cookie.GetNumber("mapsize", 1), 1, 5)]
-		local scale = scaleValues[math.Clamp(cookie.GetNumber("mapscale", 1), 1, 5)]
-		local posIndex = math.Clamp(cookie.GetNumber("mappos", 1), 1, 4)
+		local sizevalues = {150, 200, 250, 300, 400}
+		local scalevalues = {25, 50, 75, 100, 125}
+		local size = sizevalues[cookie.GetNumber("mapsize", 1)]
+		local scale = scalevalues[cookie.GetNumber("mapscale", 1)]
+		local posindex = cookie.GetNumber("mappos", 1)
 		local radius = size / 2
 		local corners = {{x = 16 + radius, y = 16 + radius}, {x = sw - 16 - radius, y = 16 + radius}, {x = 16 + radius, y = sh - 16 - radius}, {x = sw - 16 - radius, y = sh - 16 - radius}}
-		local cx, cy = corners[posIndex].x, corners[posIndex].y
+		local cx, cy = corners[posindex].x, corners[posindex].y
 		local yaw = EyeAngles().y
 		surface.SetDrawColor(0, 0, 0, 225)
 		surface.DrawRect(cx - radius, cy - radius, radius * 2, radius * 2)
@@ -212,7 +212,7 @@ end)
 
 hook.Add("CalcView", "noshake", function(ply, pos, angles, fov)
 	if not settings.noshake or globalvalues.freecamtoggle or ply:ShouldDrawLocalPlayer() or ply:InVehicle() then return end
-	local noshakefov, angs = math.Clamp(cookie.GetNumber("noshakefov", 120), 80, 170), ply:EyeAngles()
+	local noshakefov, angs = cookie.GetNumber("noshakefov", 1), ply:EyeAngles()
 	angs.r = 0
 	return {origin = pos, angles = angs, fov = noshakefov}
 end)
@@ -279,9 +279,9 @@ local function createSlider(label, min, max, key, parent)
 	local saved = cookie.GetNumber(key, min)
 	slider:SetValue(saved)
 	function slider:OnValueChanged(val)
-		local roundedVal = math.Round(val)
-		slider:SetValue(roundedVal)
-		cookie.Set(key, roundedVal)
+		local roundval = math.Round(val)
+		slider:SetValue(roundval)
+		cookie.Set(key, roundval)
 	end
 	return slider
 end
