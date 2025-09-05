@@ -55,6 +55,8 @@ end)
 hook.Add("CreateMove", "autobhopandfreecam", function(cmd)
 	local ply = LocalPlayer()
 	local wishmove, basespeed = Vector(), cookie.GetNumber("basespeed", 3)
+	local mouseDelta = cmd:GetViewAngles() - globalvalues.frozenplayerviewang
+	local speed = input.IsKeyDown(KEY_LSHIFT) and basespeed * 10 or basespeed
 	if not settings.freecam and globalvalues.freecamtoggle then
 		globalvalues.freecamtoggle = false
 		hook.Remove("CalcView", "freecamview")
@@ -66,7 +68,6 @@ hook.Add("CreateMove", "autobhopandfreecam", function(cmd)
 	elseif settings.freecam and globalvalues.freecamtoggle and not vgui.GetKeyboardFocus() and not gui.IsGameUIVisible() then
 		cmd:SetMouseX(0) 
 		cmd:SetMouseY(0)
-		local mouseDelta = cmd:GetViewAngles() - globalvalues.frozenplayerviewang
 		globalvalues.freecamang.p = math.Clamp(globalvalues.freecamang.p + mouseDelta.p, -89, 89)
 		globalvalues.freecamang.y = globalvalues.freecamang.y + mouseDelta.y
 		cmd:SetViewAngles(globalvalues.frozenplayerviewang)
@@ -77,7 +78,6 @@ hook.Add("CreateMove", "autobhopandfreecam", function(cmd)
 		if input.IsKeyDown(KEY_SPACE) then wishmove = wishmove + globalvalues.freecamang:Up() end
 		if input.IsKeyDown(KEY_LCONTROL) then wishmove = wishmove - globalvalues.freecamang:Up() end
 		if wishmove:LengthSqr() > 0 then
-			local speed = input.IsKeyDown(KEY_LSHIFT) and basespeed * 10 or basespeed
 			wishmove:Normalize()
 			globalvalues.freecampos = globalvalues.freecampos + wishmove * speed
 		end
@@ -211,19 +211,24 @@ hook.Add("HUDPaint", "drawinfo", function()
 end)
 
 hook.Add("CalcView", "noshake", function(ply, pos, angles, fov)
-	if not settings.noshake or globalvalues.freecamtoggle or ply:ShouldDrawLocalPlayer() or ply:InVehicle() then return end
+	local playermeta = FindMetaTable("Player")
 	local noshakefov, angs = cookie.GetNumber("noshakefov", 1), ply:EyeAngles()
-	angs.r = 0
-	return {origin = pos, angles = angs, fov = noshakefov}
-end)
-
-if settings.norecoil then
-	local orig = FindMetaTable("Player").SetEyeAngles
-	FindMetaTable("Player").SetEyeAngles = function(self, angle)
-		if( string.find(string.lower(debug.getinfo(2).short_src), "/weapons/")) then return end
-		orig(self, angle)
+	local src = string.lower(debug.getinfo(2).short_src)
+	if not (settings.noshake or settings.norecoil) or globalvalues.freecamtoggle or ply:ShouldDrawLocalPlayer() or ply:InVehicle() then return end
+	if settings.noshake then
+		angs.r = 0
+		return {origin = pos, angles = angs, fov = noshakefov}
 	end
-end
+	if not playermeta._originalseteyeangles then
+		playermeta._originalseteyeangles = playermeta.seteyeangles
+	end
+	playermeta.seteyeangles = function(self, angle)
+		if settings.norecoil then
+			if string.find(src, "/weapons/") then return end
+		end
+		self:_originalseteyeangles(angle)
+	end
+end)
 
 local function createLabel(text, parent)
 	local label = vgui.Create("DLabel", parent)
@@ -258,7 +263,7 @@ local function createButtonGrid(list, onClick, parent)
 	grid:DockMargin(9, 5, 0, 0)
 	for _, item in ipairs(list) do
 		local btn = grid:Add("DButton")
-		btn:SetText(item:sub(1,1):upper() .. item:sub(2):lower())
+		btn:SetText(item:sub(1, 1):upper() .. item:sub(2):lower())
 		btn:SetSize(60, 30)
 		btn.DoClick = function() onClick(item) end
 	end
@@ -353,7 +358,7 @@ concommand.Add("toggle_freecam", function()
 	else
 		globalvalues.freecamtoggle = true
 		globalvalues.freecampos = EyePos()
-		globalvalues.freecamang = ply:EyeAngles()
+		globalvalues.freecamang = EyeAngles()
 		globalvalues.frozenplayerviewang = ply:EyeAngles()
 		hook.Add("CalcView", "freecamview", function(_, _, _, fov)
 			return {origin = globalvalues.freecampos, angles = globalvalues.freecamang, fov = fov, drawviewer = true}
