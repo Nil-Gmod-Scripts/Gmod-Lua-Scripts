@@ -95,7 +95,7 @@ hook.Add("PostDrawOpaqueRenderables", "drawentityboxes", function()
 	if settings.propbox then
 		for _, ent in ipairs(entitycaches.props or {}) do
 			if IsValid(ent) then
-				render.DrawWireframeBox(ent:GetPos(), ent:GetAngles(), ent:OBBMins(), ent:OBBMaxs(), colors.blue, false)
+				render.DrawWireframeBox(ent:GetPos(), ent:GetAngles(), ent:OBBMins(), ent:OBBMaxs(), colors.cyan, false)
 			end
 		end
 	end
@@ -191,19 +191,19 @@ hook.Add("HUDPaint", "drawinfo", function()
 		for _, ent in ipairs(entitycaches.npcs or {}) do
 			if IsValid(ent) and ent:Alive() then
 				local sx, sy = minimap(ent:GetPos(), yaw, scale, radius)
-				surface.SetDrawColor(255, 0, 0)
+				surface.SetDrawColor(colors.red)
 				surface.DrawRect(cx + sx - 2, cy + sy - 2, 4, 4)
 			end
 		end
 		for _, ent in ipairs(entitycaches.players or {}) do
 			if IsValid(ent) and ent ~= ply and ent:Alive() then
 				local sx, sy = minimap(ent:GetPos(), yaw, scale, radius)
-				surface.SetDrawColor(255, 255, 255)
+				surface.SetDrawColor(colors.white)
 				surface.DrawRect(cx + sx - 2, cy + sy - 2, 4, 4)
 				draw.SimpleText(ent:Nick(), "BudgetLabel", cx + sx, cy + sy, colors.white, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 			end
 		end
-		surface.SetDrawColor(0, 255, 0)
+		surface.SetDrawColor(colors.green)
 		surface.DrawLine(cx, cy - 4, cx - 4, cy + 4)
 		surface.DrawLine(cx, cy - 4, cx + 4, cy + 4)
 		surface.DrawLine(cx - 4, cy + 4, cx + 4, cy + 4)
