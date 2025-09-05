@@ -358,7 +358,7 @@ concommand.Add("toggle_freecam", function()
 	else
 		globalvalues.freecamtoggle = true
 		globalvalues.freecampos = EyePos()
-		globalvalues.freecamang = EyeAngles()
+		globalvalues.freecamang = Angle(EyeAngles().pitch, EyeAngles().yaw, 0)
 		globalvalues.frozenplayerviewang = ply:EyeAngles()
 		hook.Add("CalcView", "freecamview", function(_, _, _, fov)
 			return {origin = globalvalues.freecampos, angles = globalvalues.freecamang, fov = fov, drawviewer = true}
