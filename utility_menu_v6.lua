@@ -26,7 +26,7 @@ colors = colors or {
 	red = Color(255, 0, 0), green = Color(0, 255, 0), blue = Color(0, 0, 255)
 }
 
-entitycolors = entitycolors or {prop = colors.cyan, npc = colors.white, player = colors.white}
+entitycolors = entitycolors or {prop = colors.blue, npc = colors.white, player = colors.white}
 
 settings = settings or {}
 
@@ -155,11 +155,17 @@ end)
 hook.Add("HUDPaint", "drawinfo", function()
 	local ply = LocalPlayer()
 	local sw, sh = ScrW(), ScrH()
+	local fps = math.floor(1 / FrameTime())
+	local infodisplay = cookie.GetNumber("infodisplay", 1)
 	if not (settings.clientinfo or settings.npcinfo or settings.playerinfo or settings.minimap) then return end
 	if settings.clientinfo and ply:Alive() then
-		local fps = math.floor(1 / FrameTime())
-		draw.SimpleText("Speed:" .. math.Round(ply:GetVelocity():Length()) .. "u/s", "BudgetLabel", sw / 2, sh / 2 + 75, colors.white, TEXT_ALIGN_CENTER)
-		draw.SimpleText("FPS:" .. fps, "BudgetLabel", sw / 2, sh / 2 + 87, Color(255 - math.min(fps / 60, 1) * 255, math.min(fps / 60, 1) * 255, 0), TEXT_ALIGN_CENTER)
+		if infodisplay == 3 then infodisplayoffset = 75 else infodisplayoffset = 87 end
+		if infodisplay == 1 or infodisplay == 2 then
+			draw.SimpleText("Speed:" .. math.Round(ply:GetVelocity():Length()) .. "u/s", "BudgetLabel", sw / 2, sh / 2 + 75, colors.white, TEXT_ALIGN_CENTER)
+		end
+		if infodisplay == 1 or infodisplay == 3 then
+			draw.SimpleText("FPS:" .. fps, "BudgetLabel", sw / 2, sh / 2 + infodisplayoffset, Color(255 - math.min(fps / 60, 1) * 255, math.min(fps / 60, 1) * 255, 0), TEXT_ALIGN_CENTER)
+		end
 	end
 	if settings.npcinfo then
 		for _, ent in ipairs(entitycaches.npcs or {}) do
@@ -175,11 +181,23 @@ hook.Add("HUDPaint", "drawinfo", function()
 		for _, ent in ipairs(entitycaches.players or {}) do
 			if IsValid(ent) and ent:Alive() then
 				local pos = ent:LocalToWorld(Vector(0, 0, ent:OBBMaxs().z)):ToScreen()
+				local statustext = ""
 				local hp = ent:Health()
 				local text = "HP:" .. hp
 				if ent:Armor() > 0 then text = text .. "|AP:" .. ent:Armor() end
-				draw.SimpleText(ent:Nick(), "BudgetLabel", pos.x, pos.y - 12, entitycolors.player, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
-				draw.SimpleText(text, "BudgetLabel", pos.x, pos.y, Color(255 - (hp / (ent:GetMaxHealth() or 100) * 255), (hp / (ent:GetMaxHealth() or 100)) * 255, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				statustext = ent:VoiceVolume() > 0.1 and "*speaking*" or (ent:IsTyping() and "*typing*" or "")
+				statuscolor = ent:VoiceVolume() > 0.1 and colors.cyan or (ent:IsTyping() and colors.yellow or entitycolors.player)
+				local playerinfodisplay = cookie.GetNumber("playerinfodisplay", 1)
+				if playerinfodisplay == 3 then playerinfodisplayoffset = 0 else playerinfodisplayoffset = 12 end
+				if playerinfodisplay == 1 then
+					draw.SimpleText(statustext, "BudgetLabel", pos.x, pos.y - 24, statuscolor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				end
+				if playerinfodisplay == 1 or playerinfodisplay == 2 or playerinfodisplay == 3 then
+					draw.SimpleText(ent:Nick(), "BudgetLabel", pos.x, pos.y - playerinfodisplayoffset, entitycolors.player, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				end
+				if playerinfodisplay == 1 or playerinfodisplay == 2 then
+					draw.SimpleText(text, "BudgetLabel", pos.x, pos.y, Color(255 - (hp / (ent:GetMaxHealth() or 100) * 255), (hp / (ent:GetMaxHealth() or 100)) * 255, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				end
 			end
 		end
 	end
@@ -223,7 +241,7 @@ hook.Add("CalcView", "fixedcamera", function(ply, pos, angles, fov)
 	if settings.noshake then
 		if not (globalvalues.freecamtoggle or ply:ShouldDrawLocalPlayer() or ply:InVehicle()) then
 			angles.r = 0
-			return {origin = pos, angles = angles, fov = cookie.GetNumber("noshakefov", 1)}
+			return {origin = pos, angles = angles, fov = cookie.GetNumber("noshakefov", 120)}
 		end
 	end
 	if settings.norecoil then
@@ -332,14 +350,18 @@ local function createMenu()
 	createCheckbox("Draw player boxes", "playerbox", scrolldisplay)
 	createCheckbox("Draw player lines", "playerline", scrolldisplay)
 	createCheckbox("Draw player info", "playerinfo", scrolldisplay)
-	createLabel("Free cam:", scrollsettings)
+	createLabel("Freecam settings:", scrollsettings)
 	createSlider("Speed:", 1, 50, "basespeed", scrollsettings)
 	createLabel("No shake:", scrollsettings)
 	createSlider("FOV", 80, 170, "noshakefov", scrollsettings)
+	createLabel("Client info settings:", scrollsettings)
+	createSlider("Info:", 1, 3, "infodisplay", scrollsettings)
 	createLabel("Map settings:", scrollsettings)
 	createSlider("Size:", 1, 5, "mapsize", scrollsettings)
 	createSlider("Scale:", 1, 5, "mapscale", scrollsettings)
 	createSlider("Pos:", 1, 4, "mappos", scrollsettings)
+	createLabel("Player info settings:", scrollsettings)
+	createSlider("Info:", 1, 3, "playerinfodisplay", scrollsettings)
 	return frame
 end
 
