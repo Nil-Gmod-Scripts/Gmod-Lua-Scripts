@@ -8,6 +8,7 @@ hook.Remove("PostDrawTranslucentRenderables", "drawcursorlines")
 hook.Remove("HUDPaint", "drawinfo")
 hook.Remove("HUDPaint", "eyeangleupdater")
 hook.Remove("CalcView", "fixedcamera")
+hook.Remove("Think", "flashlightspam")
 concommand.Remove("open_utility_menu")
 concommand.Remove("toggle_freecam")
 
@@ -67,22 +68,17 @@ hook.Add("Think", "updatecache", function()
 	end
 end)
 
-hook.Add("CreateMove", "autobhopandfreecam", function(cmd)
-	local ply = LocalPlayer()
+hook.Add("CreateMove", "freecam", function(cmd)
 	local wishmove, basespeed = Vector(), cookie.GetNumber("basespeed", 3)
 	local freecam_sensitivity = 0.015
-	local mousex = cmd:GetMouseX() * freecam_sensitivity
-	local mousey = cmd:GetMouseY() * freecam_sensitivity
+	local mousex, mousey = cmd:GetMouseX() * freecam_sensitivity, cmd:GetMouseY() * freecam_sensitivity
 	local speed = input.IsKeyDown(KEY_LSHIFT) and basespeed * 10 or basespeed
 	if not settings.freecam and globalvalues.freecamtoggle then
 		globalvalues.freecamtoggle = false
 		hook.Remove("CalcView", "freecamview")
 		hook.Remove("PlayerBindPress", "freecamblockkeys")
 	end
-	if not (settings.autobhop or settings.freecam) then return end
-	if settings.autobhop and cmd:KeyDown(IN_JUMP) and not ply:IsOnGround() and ply:WaterLevel() <= 1 and ply:GetMoveType() ~= MOVETYPE_NOCLIP then
-		cmd:RemoveKey(IN_JUMP)
-	elseif settings.freecam and globalvalues.freecamtoggle and not vgui.GetKeyboardFocus() and not gui.IsGameUIVisible() then
+	if settings.freecam and globalvalues.freecamtoggle and not vgui.GetKeyboardFocus() and not gui.IsGameUIVisible() then
 		globalvalues.freecamang.p = math.Clamp(globalvalues.freecamang.p + mousey, -89, 89)
 		globalvalues.freecamang.y = globalvalues.freecamang.y - mousex
 		cmd:SetViewAngles(globalvalues.frozenplayerviewang)
@@ -102,6 +98,19 @@ hook.Add("CreateMove", "autobhopandfreecam", function(cmd)
 			end
 			return true
 		end)
+	end
+end)
+
+hook.Add("CreateMove", "autobhop", function(cmd)
+    local ply = LocalPlayer()
+	if settings.autobhop and cmd:KeyDown(IN_JUMP) and not ply:IsOnGround() and ply:WaterLevel() <= 1 and ply:GetMoveType() ~= MOVETYPE_NOCLIP then
+		cmd:RemoveKey(IN_JUMP)
+	end
+end)
+
+hook.Add("Think", "flashlightspam", function()
+	if settings.flashlightspam and input.IsKeyDown(KEY_F) and not vgui.GetKeyboardFocus() and not gui.IsGameUIVisible() then
+		RunConsoleCommand("impulse", "100")
 	end
 end)
 
@@ -185,10 +194,10 @@ hook.Add("HUDPaint", "drawinfo", function()
 				local hp = ent:Health()
 				local text = "HP:" .. hp
 				if ent:Armor() > 0 then text = text .. "|AP:" .. ent:Armor() end
-				statustext = ent:VoiceVolume() > 0.1 and "*speaking*" or (ent:IsTyping() and "*typing*" or "")
-				statuscolor = ent:VoiceVolume() > 0.1 and colors.cyan or (ent:IsTyping() and colors.yellow or entitycolors.player)
+				statustext = ent:VoiceVolume() > 0.01 and "*speaking*" or ent:IsTyping() and "*typing*" or ""
+				statuscolor = ent:VoiceVolume() > 0.01 and colors.cyan or ent:IsTyping() and colors.yellow or entitycolors.player
 				local playerinfodisplay = cookie.GetNumber("playerinfodisplay", 1)
-				if playerinfodisplay == 3 then playerinfodisplayoffset = 0 else playerinfodisplayoffset = 12 end
+				playerinfodisplayoffset = playerinfodisplay == 3 and 0 or 12
 				if playerinfodisplay == 1 then
 					draw.SimpleText(statustext, "BudgetLabel", pos.x, pos.y - 24, statuscolor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 				end
@@ -254,7 +263,7 @@ hook.Add("CalcView", "fixedcamera", function(ply, pos, angles, fov)
 	end
 end)
 
-local function createLabel(text, parent)
+local function createlabel(text, parent)
 	local label = vgui.Create("DLabel", parent)
 	label:SetText(text)
 	label:SetFont("DermaDefaultBold")
@@ -265,7 +274,7 @@ local function createLabel(text, parent)
 	return label
 end
 
-local function createCheckbox(text, key, parent)
+local function createcheckbox(text, key, parent)
 	local checkbox = vgui.Create("DCheckBoxLabel", parent)
 	checkbox:SetText(text)
 	checkbox:SetFont("DermaDefault")
@@ -331,36 +340,37 @@ local function createMenu()
 	tab:AddSheet("Utility", scrollutility, "icon16/wrench.png")
 	tab:AddSheet("Display", scrolldisplay, "icon16/monitor.png")
 	tab:AddSheet("Settings", scrollsettings, "icon16/cog.png")
-	createLabel("Miscellaneous options:", scrollutility)
-	createCheckbox("Auto bhop", "autobhop", scrollutility)
-	createCheckbox("Toggle freecam", "freecam", scrollutility)
-	createCheckbox("Toggle no shake", "noshake", scrollutility)
-	createCheckbox("Toggle no recoil", "norecoil", scrollutility)
-	createLabel("Player gestures:", scrollutility)
+	createlabel("Miscellaneous options:", scrollutility)
+	createcheckbox("Toggle auto bhop", "autobhop", scrollutility)
+	createcheckbox("Toggle flashlight spam", "flashlightspam", scrollutility)
+	createcheckbox("Toggle freecam", "freecam", scrollutility)
+	createcheckbox("Toggle no recoil", "norecoil", scrollutility)
+	createlabel("Player gestures:", scrollutility)
 	createButtonGrid(acts, function(act) RunConsoleCommand("act", act) end, scrollutility)
-	createLabel("Miscellaneous options:", scrolldisplay)
-	createCheckbox("Draw client info", "clientinfo", scrolldisplay)
-	createCheckbox("Show minimap", "minimap", scrolldisplay)
-	createCheckbox("Draw prop boxes", "propbox", scrolldisplay)
-	createLabel("NPC options:", scrolldisplay)
-	createCheckbox("Draw NPC boxes", "npcbox", scrolldisplay)
-	createCheckbox("Draw NPC lines", "npcline", scrolldisplay)
-	createCheckbox("Draw NPC info", "npcinfo", scrolldisplay)
-	createLabel("Player Options:", scrolldisplay)
-	createCheckbox("Draw player boxes", "playerbox", scrolldisplay)
-	createCheckbox("Draw player lines", "playerline", scrolldisplay)
-	createCheckbox("Draw player info", "playerinfo", scrolldisplay)
-	createLabel("Freecam settings:", scrollsettings)
+	createlabel("Miscellaneous options:", scrolldisplay)
+	createcheckbox("Draw client info", "clientinfo", scrolldisplay)
+	createcheckbox("Draw prop boxes", "propbox", scrolldisplay)
+	createcheckbox("Show minimap", "minimap", scrolldisplay)
+	createcheckbox("Toggle no shake", "noshake", scrolldisplay)
+	createlabel("NPC options:", scrolldisplay)
+	createcheckbox("Draw NPC boxes", "npcbox", scrolldisplay)
+	createcheckbox("Draw NPC info", "npcinfo", scrolldisplay)
+	createcheckbox("Draw NPC lines", "npcline", scrolldisplay)
+	createlabel("Player Options:", scrolldisplay)
+	createcheckbox("Draw player boxes", "playerbox", scrolldisplay)
+	createcheckbox("Draw player info", "playerinfo", scrolldisplay)
+	createcheckbox("Draw player lines", "playerline", scrolldisplay)
+	createlabel("Freecam settings:", scrollsettings)
 	createSlider("Speed:", 1, 50, "basespeed", scrollsettings)
-	createLabel("No shake:", scrollsettings)
-	createSlider("FOV", 80, 170, "noshakefov", scrollsettings)
-	createLabel("Client info settings:", scrollsettings)
+	createlabel("Client info settings:", scrollsettings)
 	createSlider("Info:", 1, 3, "infodisplay", scrollsettings)
-	createLabel("Map settings:", scrollsettings)
-	createSlider("Size:", 1, 5, "mapsize", scrollsettings)
-	createSlider("Scale:", 1, 5, "mapscale", scrollsettings)
+	createlabel("Map settings:", scrollsettings)
 	createSlider("Pos:", 1, 4, "mappos", scrollsettings)
-	createLabel("Player info settings:", scrollsettings)
+	createSlider("Scale:", 1, 5, "mapscale", scrollsettings)
+	createSlider("Size:", 1, 5, "mapsize", scrollsettings)
+	createlabel("No shake:", scrollsettings)
+	createSlider("FOV", 80, 170, "noshakefov", scrollsettings)
+	createlabel("Player info settings:", scrollsettings)
 	createSlider("Info:", 1, 3, "playerinfodisplay", scrollsettings)
 	return frame
 end
