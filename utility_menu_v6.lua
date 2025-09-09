@@ -180,9 +180,9 @@ hook.Add("HUDPaint", "drawinfo", function()
 		for _, ent in ipairs(entitycaches.npcs or {}) do
 			if IsValid(ent) and ent:Alive() then
 				local pos = ent:LocalToWorld(Vector(0, 0, ent:OBBMaxs().z)):ToScreen()
-				local hp, maxhp = ent:Health(), ent:GetMaxHealth()
+				local npchealthcolor = Color(255 - (ent:Health() / (ent:GetMaxHealth() or 100) * 255), (ent:Health() / (ent:GetMaxHealth() or 100)) * 255, 0)
 				draw.SimpleText(ent:GetClass(), "BudgetLabel", pos.x, pos.y - 12, entitycolors.npc, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
-				draw.SimpleText("HP:" .. hp, "BudgetLabel", pos.x, pos.y, Color(255 - (hp / (maxhp or 100) * 255), (hp / (maxhp or 100)) * 255, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				draw.SimpleText("HP:" .. ent:Health(), "BudgetLabel", pos.x, pos.y, npchealthcolor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 			end
 		end
 	end
@@ -191,21 +191,22 @@ hook.Add("HUDPaint", "drawinfo", function()
 			if IsValid(ent) and ent:Alive() then
 				local pos = ent:LocalToWorld(Vector(0, 0, ent:OBBMaxs().z)):ToScreen()
 				local statustext = ""
-				local hp = ent:Health()
-				local text = "HP:" .. hp
+				local playerhealthcolor = Color(255 - (ent:Health() / (ent:GetMaxHealth() or 100) * 255), (ent:Health() / (ent:GetMaxHealth() or 100)) * 255, 0)
+				local text = "HP:" .. ent:Health()
+				local playerinfodisplay = cookie.GetNumber("playerinfodisplay", 1)
 				if ent:Armor() > 0 then text = text .. "|AP:" .. ent:Armor() end
 				statustext = ent:VoiceVolume() > 0.01 and "*speaking*" or ent:IsTyping() and "*typing*" or ""
 				statuscolor = ent:VoiceVolume() > 0.01 and colors.cyan or ent:IsTyping() and colors.yellow or entitycolors.player
-				local playerinfodisplay = cookie.GetNumber("playerinfodisplay", 1)
+				nametagcolor = playerinfodisplay == 2 and statuscolor or entitycolors.player
 				playerinfodisplayoffset = playerinfodisplay == 3 and 0 or 12
 				if playerinfodisplay == 1 then
 					draw.SimpleText(statustext, "BudgetLabel", pos.x, pos.y - 24, statuscolor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 				end
-				if playerinfodisplay == 1 or playerinfodisplay == 2 or playerinfodisplay == 3 then
-					draw.SimpleText(ent:Nick(), "BudgetLabel", pos.x, pos.y - playerinfodisplayoffset, entitycolors.player, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				if playerinfodisplay == 1  or playerinfodisplay == 2 or playerinfodisplay == 3 or playerinfodisplay == 4 then
+					draw.SimpleText(ent:Nick(), "BudgetLabel", pos.x, pos.y - playerinfodisplayoffset, nametagcolor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 				end
-				if playerinfodisplay == 1 or playerinfodisplay == 2 then
-					draw.SimpleText(text, "BudgetLabel", pos.x, pos.y, Color(255 - (hp / (ent:GetMaxHealth() or 100) * 255), (hp / (ent:GetMaxHealth() or 100)) * 255, 0), TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				if playerinfodisplay == 1 or playerinfodisplay == 2 or playerinfodisplay == 3 then
+					draw.SimpleText(text, "BudgetLabel", pos.x, pos.y, playerhealthcolor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 				end
 			end
 		end
@@ -371,7 +372,7 @@ local function createMenu()
 	createlabel("No shake:", scrollsettings)
 	createSlider("FOV", 80, 170, "noshakefov", scrollsettings)
 	createlabel("Player info settings:", scrollsettings)
-	createSlider("Info:", 1, 3, "playerinfodisplay", scrollsettings)
+	createSlider("Info:", 1, 4, "playerinfodisplay", scrollsettings)
 	return frame
 end
 
