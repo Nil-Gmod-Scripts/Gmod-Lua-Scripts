@@ -1,406 +1,478 @@
 if SERVER then return end
 
-hook.Remove("Think", "updatecache")
-hook.Remove("CreateMove", "autobhopandfreecam")
-hook.Remove("PlayerBindPress", "freecamblockkeys")
-hook.Remove("PostDrawOpaqueRenderables", "drawentityboxes")
-hook.Remove("PostDrawTranslucentRenderables", "drawcursorlines")
-hook.Remove("HUDPaint", "drawinfo")
-hook.Remove("HUDPaint", "eyeangleupdater")
-hook.Remove("CalcView", "fixedcamera")
-hook.Remove("Think", "flashlightspam")
-concommand.Remove("open_utility_menu")
-concommand.Remove("toggle_freecam")
-
-globalvalues = globalvalues or {
-	scriptran = false, freecamtoggle = false, freecampos = Vector(0, 0, 0), freecamang = Angle(0, 0, 0), frozenplayerviewang = Angle(0, 0, 0), lastupdate = 0
-}
-
-entitycaches = entitycaches or {players = {}, npcs = {}, props = {}}
-
-acts = acts or {
-	"agree", "becon", "bow", "cheer", "dance", "disagree", "forward", "group", "halt", "laugh", "muscle", "pers", "robot", "salute", "wave", "zombie"
-}
-
-colors = colors or {
-	white = Color(255, 255, 255), cyan = Color(0, 255, 255), yellow = Color(255, 255, 0), green = Color(0, 255, 0), black = Color(0, 0, 0), purple = Color(180, 0, 180),
-	red = Color(255, 0, 0), green = Color(0, 255, 0), blue = Color(0, 0, 255)
-}
-
-entitycolors = entitycolors or {prop = colors.blue, npc = colors.white, player = colors.white}
-
-settings = settings or {}
-
-if not globalvalues.scriptran then
-	globalvalues.scriptran = true
-	print("\nRun 'open_utility_menu' to open the menu!\n")
+local function CleanUpHooks()
+	local hooksToRemove = {
+		"Think", "updatecache", "CreateMove", "autobhopandfreecam", "PlayerBindPress", "freecamblockkeys",
+		"PostDrawOpaqueRenderables", "drawentityboxes", "PostDrawTranslucentRenderables", "drawlines",
+		"HUDPaint", "drawinfo", "HUDPaint", "eyeangleupdater", "CalcView", "fixedcamera", "Think", "flashlightspam"
+	}
+	local commandsToRemove = {"open_utility_menu", "toggle_freecam"}
+	for i = 1, #hooksToRemove, 2 do
+		hook.Remove(hooksToRemove[i], hooksToRemove[i+1])
+	end
+	for _, cmd in ipairs(commandsToRemove) do
+		concommand.Remove(cmd)
+	end
 end
 
-local function updatecache()
-	for _, t in pairs(entitycaches) do table.Empty(t) end
+CleanUpHooks()
+
+if not UtilityMenu then UtilityMenu = {} end
+
+UtilityMenu.Config = {
+	Colors = {
+		White = Color(255, 255, 255), Cyan = Color(0, 255, 255), Yellow = Color(255, 255, 0), Green = Color(0, 255, 0),
+		Black = Color(0, 0, 0), Purple = Color(180, 0, 180), Red = Color(255, 0, 0), Blue = Color(0, 0, 255)
+	},
+	EntityColors = {
+		Prop = Color(0, 0, 255), NPC = Color(255, 255, 255), Player = Color(255, 255, 255)
+	},
+	Gestures = {
+		"agree", "becon", "bow", "cheer", "dance", "disagree", "forward", "group",
+		"halt", "laugh", "muscle", "pers", "robot", "salute", "wave", "zombie"
+	},
+	MapSizes = {150, 200, 250, 300, 400},
+	MapScales = {25, 50, 75, 100, 125}
+}
+
+UtilityMenu.State = UtilityMenu.State or {
+	ScriptRan = false, FreecamEnabled = false, FreecamPosition = Vector(0, 0, 0), FreecamAngle = Angle(0, 0, 0),
+	FrozenViewAngle = Angle(0, 0, 0), LastCacheUpdate = 0, EntityCache = {Players = {}, NPCs = {}, Props = {}}
+}
+
+UtilityMenu.Settings = UtilityMenu.Settings or {}
+
+function UtilityMenu.Init()
+	if not UtilityMenu.State.ScriptRan then
+		UtilityMenu.State.ScriptRan = true
+		print("\nRun 'open_utility_menu' to open the menu!\n")
+	end
+end
+
+function UtilityMenu.UpdateEntityCache()
+	for _, cache in pairs(UtilityMenu.State.EntityCache) do
+		table.Empty(cache)
+	end
 	for _, ent in ipairs(ents.GetAll()) do
+		if not IsValid(ent) then continue end
 		if ent:GetClass():lower():find("prop_") then
-			table.insert(entitycaches.props, ent)
+			table.insert(UtilityMenu.State.EntityCache.Props, ent)
 		elseif ent:IsNPC() then
-			table.insert(entitycaches.npcs, ent)
+			table.insert(UtilityMenu.State.EntityCache.NPCs, ent)
 		elseif ent:IsPlayer() and ent ~= LocalPlayer() then
-			table.insert(entitycaches.players, ent)
+			table.insert(UtilityMenu.State.EntityCache.Players, ent)
 		end
 	end
 end
 
-local function minimap(pos, yaw, scale, radius)
-	local delta, angle = pos - EyePos(), math.rad(-yaw - 90)
-	local x, y = -(delta.x * math.cos(angle) - delta.y * math.sin(angle)), delta.x * math.sin(angle) + delta.y * math.cos(angle)
+function UtilityMenu.MinimapProjection(position, yaw, scale, radius)
+	local delta = position - EyePos()
+	local angle = math.rad(-yaw - 90)
+	local x = -(delta.x * math.cos(angle) - delta.y * math.sin(angle))
+	local y = delta.x * math.sin(angle) + delta.y * math.cos(angle)
 	x, y = x / scale, y / scale
-	x, y = math.Clamp(x, -radius, radius), math.Clamp(y, -radius, radius)
-	return x, y
+	return math.Clamp(x, -radius, radius), math.Clamp(y, -radius, radius)
 end
 
-hook.Add("HUDPaint", "eyeangleupdater", function()
-	local _ = EyeAngles()
-end)
-
-hook.Add("Think", "updatecache", function()
-	if CurTime() - globalvalues.lastupdate > 0.1 then
-		updatecache()
-		globalvalues.lastupdate = CurTime()
-	end
-end)
-
-hook.Add("CreateMove", "freecam", function(cmd)
-	local wishmove, basespeed = Vector(), cookie.GetNumber("basespeed", 3)
-	local freecam_sensitivity = 0.015
-	local mousex, mousey = cmd:GetMouseX() * freecam_sensitivity, cmd:GetMouseY() * freecam_sensitivity
-	local speed = input.IsKeyDown(KEY_LSHIFT) and basespeed * 10 or basespeed
-	if not settings.freecam and globalvalues.freecamtoggle then
-		globalvalues.freecamtoggle = false
-		hook.Remove("CalcView", "freecamview")
-		hook.Remove("PlayerBindPress", "freecamblockkeys")
-	end
-	if settings.freecam and globalvalues.freecamtoggle and not vgui.GetKeyboardFocus() and not gui.IsGameUIVisible() then
-		globalvalues.freecamang.p = math.Clamp(globalvalues.freecamang.p + mousey, -89, 89)
-		globalvalues.freecamang.y = globalvalues.freecamang.y - mousex
-		cmd:SetViewAngles(globalvalues.frozenplayerviewang)
-		if input.IsKeyDown(KEY_W) then wishmove = wishmove + globalvalues.freecamang:Forward() end
-		if input.IsKeyDown(KEY_S) then wishmove = wishmove - globalvalues.freecamang:Forward() end
-		if input.IsKeyDown(KEY_D) then wishmove = wishmove + globalvalues.freecamang:Right() end
-		if input.IsKeyDown(KEY_A) then wishmove = wishmove - globalvalues.freecamang:Right() end
-		if input.IsKeyDown(KEY_SPACE) then wishmove = wishmove + globalvalues.freecamang:Up() end
-		if input.IsKeyDown(KEY_LCONTROL) then wishmove = wishmove - globalvalues.freecamang:Up() end
-		if wishmove:LengthSqr() > 0 then
-			wishmove:Normalize()
-			globalvalues.freecampos = globalvalues.freecampos + wishmove * speed
+function UtilityMenu.DrawBones(entity, color)
+	if not entity.BoneParents then
+		entity.BoneParents = {}
+		for i = 0, entity:GetBoneCount() - 1 do
+			entity.BoneParents[i] = entity:GetBoneParent(i)
 		end
-		hook.Add("PlayerBindPress", "freecamblockkeys", function(ply, bind, pressed)
-			if string.find(bind, "toggle_freecam") or string.find(bind, "messagemode") or string.find(bind, "+showscores") or string.find(bind, "open_utility_menu") or string.find(bind, "kill") then
-				return false
+	end
+	local origin = entity:GetPos()
+	for i = 0, entity:GetBoneCount() - 1 do
+		local parent = entity.BoneParents[i]
+		if not parent or parent == -1 then continue end
+		local bonePos1 = entity:GetBonePosition(i)
+		local bonePos2 = entity:GetBonePosition(parent)
+		if bonePos1 and bonePos2 and bonePos1:DistToSqr(origin) > 1 and bonePos2:DistToSqr(origin) > 1 then
+			render.DrawLine(bonePos1, bonePos2, color, false)
+		end
+	end
+end
+
+function UtilityMenu.SetupHooks()
+	hook.Add("Think", "UtilityMenu_UpdateCache", function()
+		if CurTime() - UtilityMenu.State.LastCacheUpdate > 0.1 then
+			UtilityMenu.UpdateEntityCache()
+			UtilityMenu.State.LastCacheUpdate = CurTime()
+		end
+	end)
+	hook.Add("CreateMove", "UtilityMenu_Freecam", function(cmd)
+		if not UtilityMenu.Settings.freecam or not UtilityMenu.State.FreecamEnabled then
+			if UtilityMenu.State.FreecamEnabled then
+				UtilityMenu.State.FreecamEnabled = false
+				hook.Remove("CalcView", "UtilityMenu_FreecamView")
+				hook.Remove("PlayerBindPress", "UtilityMenu_FreecamBlockKeys")
+			end
+			return
+		end
+		if vgui.GetKeyboardFocus() or gui.IsGameUIVisible() then return end
+		local baseSpeed = cookie.GetNumber("basespeed", 3)
+		local sensitivity = 0.015
+		local mouseX, mouseY = cmd:GetMouseX() * sensitivity, cmd:GetMouseY() * sensitivity
+		local speed = input.IsKeyDown(KEY_LSHIFT) and baseSpeed * 10 or baseSpeed
+		UtilityMenu.State.FreecamAngle.p = math.Clamp(UtilityMenu.State.FreecamAngle.p + mouseY, -89, 89)
+		UtilityMenu.State.FreecamAngle.y = UtilityMenu.State.FreecamAngle.y - mouseX
+		cmd:SetViewAngles(UtilityMenu.State.FrozenViewAngle)
+		local wishMove = Vector()
+		if input.IsKeyDown(KEY_W) then wishMove = wishMove + UtilityMenu.State.FreecamAngle:Forward() end
+		if input.IsKeyDown(KEY_S) then wishMove = wishMove - UtilityMenu.State.FreecamAngle:Forward() end
+		if input.IsKeyDown(KEY_D) then wishMove = wishMove + UtilityMenu.State.FreecamAngle:Right() end
+		if input.IsKeyDown(KEY_A) then wishMove = wishMove - UtilityMenu.State.FreecamAngle:Right() end
+		if input.IsKeyDown(KEY_SPACE) then wishMove = wishMove + UtilityMenu.State.FreecamAngle:Up() end
+		if input.IsKeyDown(KEY_LCONTROL) then wishMove = wishMove - UtilityMenu.State.FreecamAngle:Up() end
+		if wishMove:LengthSqr() > 0 then
+			wishMove:Normalize()
+			UtilityMenu.State.FreecamPosition = UtilityMenu.State.FreecamPosition + wishMove * speed
+		end
+		hook.Add("PlayerBindPress", "UtilityMenu_FreecamBlockKeys", function(_, bind)
+			local blockedBinds = {"toggle_freecam", "messagemode", "+showscores", "open_utility_menu", "kill"}
+			for _, blocked in ipairs(blockedBinds) do
+				if string.find(bind, blocked) then return false end
 			end
 			return true
 		end)
-	end
-end)
-
-hook.Add("CreateMove", "autobhop", function(cmd)
-    local ply = LocalPlayer()
-	if settings.autobhop and cmd:KeyDown(IN_JUMP) and not ply:IsOnGround() and ply:WaterLevel() <= 1 and ply:GetMoveType() ~= MOVETYPE_NOCLIP then
-		cmd:RemoveKey(IN_JUMP)
-	end
-end)
-
-hook.Add("Think", "flashlightspam", function()
-	if settings.flashlightspam and input.IsKeyDown(KEY_F) and not vgui.GetKeyboardFocus() and not gui.IsGameUIVisible() then
+	end)
+	hook.Add("CreateMove", "UtilityMenu_AutoBhop", function(cmd)
+		if not UtilityMenu.Settings.autobhop then return end
+		local ply = LocalPlayer()
+		if cmd:KeyDown(IN_JUMP) and not ply:IsOnGround() and ply:WaterLevel() <= 1 and ply:GetMoveType() ~= MOVETYPE_NOCLIP then
+			cmd:RemoveKey(IN_JUMP)
+		end
+	end)
+	hook.Add("Think", "UtilityMenu_FlashlightSpam", function()
+		if not UtilityMenu.Settings.flashlightspam then return end
+		if not input.IsKeyDown(KEY_F) or vgui.GetKeyboardFocus() or gui.IsGameUIVisible() then return end
 		RunConsoleCommand("impulse", "100")
-	end
-end)
-
-hook.Add("PostDrawOpaqueRenderables", "drawentityboxes", function()
-	if not (settings.propbox or settings.npcbox or settings.playerbox) then return end
-	if settings.propbox then
-		for _, ent in ipairs(entitycaches.props or {}) do
-			if IsValid(ent) then
-				render.DrawWireframeBox(ent:GetPos(), ent:GetAngles(), ent:OBBMins(), ent:OBBMaxs(), entitycolors.prop, false)
+	end)
+	hook.Add("PostDrawOpaqueRenderables", "UtilityMenu_DrawEntityBoxes", function()
+		local drawFunctions = {
+			propbox = {cache = UtilityMenu.State.EntityCache.Props, color = UtilityMenu.Config.EntityColors.Prop},
+			npcbox = {cache = UtilityMenu.State.EntityCache.NPCs, color = UtilityMenu.Config.EntityColors.NPC, checkAlive = true},
+			playerbox = {cache = UtilityMenu.State.EntityCache.Players, color = UtilityMenu.Config.EntityColors.Player, checkAlive = true}
+		}
+		for setting, data in pairs(drawFunctions) do
+			if not UtilityMenu.Settings[setting] then continue end
+			for _, ent in ipairs(data.cache) do
+				if not IsValid(ent) then continue end
+				if data.checkAlive and not ent:Alive() then continue end
+				render.DrawWireframeBox(ent:GetPos(), data.useAngle and ent:GetAngles() or Angle(0, 0, 0), ent:OBBMins(), ent:OBBMaxs(), data.color, false)
 			end
 		end
-	end
-	if settings.npcbox then
-		for _, ent in ipairs(entitycaches.npcs or {}) do
-			if IsValid(ent) and ent:Alive() then
-				render.DrawWireframeBox(ent:GetPos(), Angle(0, 0, 0), ent:OBBMins(), ent:OBBMaxs(), entitycolors.npc, false)
+	end)
+	hook.Add("PostDrawTranslucentRenderables", "UtilityMenu_DrawLinesAndBones", function()
+		local ply = LocalPlayer()
+		if not ply:Alive() or ply:ShouldDrawLocalPlayer() then return end
+		local startPos = ply:EyePos() + ply:GetAimVector() * 50
+		local lineFunctions = {
+			npcline = {cache = UtilityMenu.State.EntityCache.NPCs, color = UtilityMenu.Config.EntityColors.NPC},
+			playerline = {cache = UtilityMenu.State.EntityCache.Players, color = UtilityMenu.Config.EntityColors.Player}
+		}
+		for setting, data in pairs(lineFunctions) do
+			if not UtilityMenu.Settings[setting] then continue end
+			for _, ent in ipairs(data.cache) do
+				if not IsValid(ent) or not ent:Alive() then continue end
+				local endPos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
+				render.DrawLine(startPos, endPos, data.color, false)
 			end
 		end
-	end
-	if settings.playerbox then
-		for _, ent in ipairs(entitycaches.players or {}) do
-			if IsValid(ent) and ent:Alive() then
-				render.DrawWireframeBox(ent:GetPos(), Angle(0, 0, 0), ent:OBBMins(), ent:OBBMaxs(), entitycolors.player, false)
+		local boneFunctions = {
+			npcbones = {cache = UtilityMenu.State.EntityCache.NPCs, color = UtilityMenu.Config.EntityColors.NPC},
+			playerbones = {cache = UtilityMenu.State.EntityCache.Players, color = UtilityMenu.Config.EntityColors.Player}
+		}
+		for setting, data in pairs(boneFunctions) do
+			if not UtilityMenu.Settings[setting] then continue end
+			for _, ent in ipairs(data.cache) do
+				if not IsValid(ent) or not ent:Alive() then continue end
+				if setting == "playerbones" and ent == LocalPlayer() then continue end
+				UtilityMenu.DrawBones(ent, data.color)
 			end
 		end
-	end
-end)
-
-hook.Add("PostDrawTranslucentRenderables", "drawcursorlines", function()
-	local ply = LocalPlayer()
-	if not (settings.npcline or settings.playerline) and not ply:Alive() and ply:ShouldDrawLocalPlayer() then return end
-	local startpos = ply:EyePos() + ply:GetAimVector() * 50
-	if settings.npcline then
-		for _, ent in ipairs(entitycaches.npcs or {}) do
-			if IsValid(ent) and ent:Alive() then
-				local endpos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
-				render.DrawLine(startpos, endpos, entitycolors.npc, false)
+	end)
+	hook.Add("HUDPaint", "UtilityMenu_DrawHUD", function()
+		local ply = LocalPlayer()
+		local screenWidth, screenHeight = ScrW(), ScrH()
+		if UtilityMenu.Settings.clientinfo and ply:Alive() then
+			local fps = math.floor(1 / FrameTime())
+			local infoDisplay = cookie.GetNumber("infodisplay", 1)
+			local offset = (infoDisplay == 3) and 75 or 87
+			if infoDisplay == 1 or infoDisplay == 2 then
+				draw.SimpleText("Speed: " .. math.Round(ply:GetVelocity():Length()) .. "u/s", "BudgetLabel", screenWidth / 2, screenHeight / 2 + 75, UtilityMenu.Config.Colors.White, TEXT_ALIGN_CENTER)
+			end
+			if infoDisplay == 1 or infoDisplay == 3 then
+				local fpsColor = Color(255 - math.min(fps / 60, 1) * 255, math.min(fps / 60, 1) * 255, 0)
+				draw.SimpleText("FPS: " .. fps, "BudgetLabel", screenWidth / 2, screenHeight / 2 + offset, fpsColor, TEXT_ALIGN_CENTER)
 			end
 		end
-	end
-	if settings.playerline then
-		for _, ent in ipairs(entitycaches.players or {}) do
-			if IsValid(ent) and ent:Alive() then
-				local endpos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
-				render.DrawLine(startpos, endpos, entitycolors.player, false)
+		if UtilityMenu.Settings.npcinfo then
+			for _, npc in ipairs(UtilityMenu.State.EntityCache.NPCs) do
+				if not IsValid(npc) or not npc:Alive() then continue end
+				local pos = npc:LocalToWorld(Vector(0, 0, npc:OBBMaxs().z)):ToScreen()
+				local maxHealth = npc:GetMaxHealth() or 100
+				local healthRatio = npc:Health() / maxHealth
+				local healthColor = Color(255 - healthRatio * 255, healthRatio * 255, 0)
+				draw.SimpleText(npc:GetClass(), "BudgetLabel", pos.x, pos.y - 12, UtilityMenu.Config.EntityColors.NPC, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				draw.SimpleText("HP: " .. npc:Health(), "BudgetLabel", pos.x, pos.y, healthColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 			end
 		end
-	end
-end)
-
-hook.Add("HUDPaint", "drawinfo", function()
-	local ply = LocalPlayer()
-	local sw, sh = ScrW(), ScrH()
-	local fps = math.floor(1 / FrameTime())
-	local infodisplay = cookie.GetNumber("infodisplay", 1)
-	if not (settings.clientinfo or settings.npcinfo or settings.playerinfo or settings.minimap) then return end
-	if settings.clientinfo and ply:Alive() then
-		if infodisplay == 3 then infodisplayoffset = 75 else infodisplayoffset = 87 end
-		if infodisplay == 1 or infodisplay == 2 then
-			draw.SimpleText("Speed:" .. math.Round(ply:GetVelocity():Length()) .. "u/s", "BudgetLabel", sw / 2, sh / 2 + 75, colors.white, TEXT_ALIGN_CENTER)
-		end
-		if infodisplay == 1 or infodisplay == 3 then
-			draw.SimpleText("FPS:" .. fps, "BudgetLabel", sw / 2, sh / 2 + infodisplayoffset, Color(255 - math.min(fps / 60, 1) * 255, math.min(fps / 60, 1) * 255, 0), TEXT_ALIGN_CENTER)
-		end
-	end
-	if settings.npcinfo then
-		for _, ent in ipairs(entitycaches.npcs or {}) do
-			if IsValid(ent) and ent:Alive() then
-				local pos = ent:LocalToWorld(Vector(0, 0, ent:OBBMaxs().z)):ToScreen()
-				local npchealthcolor = Color(255 - (ent:Health() / (ent:GetMaxHealth() or 100) * 255), (ent:Health() / (ent:GetMaxHealth() or 100)) * 255, 0)
-				draw.SimpleText(ent:GetClass(), "BudgetLabel", pos.x, pos.y - 12, entitycolors.npc, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
-				draw.SimpleText("HP:" .. ent:Health(), "BudgetLabel", pos.x, pos.y, npchealthcolor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
-			end
-		end
-	end
-	if settings.playerinfo then
-		for _, ent in ipairs(entitycaches.players or {}) do
-			if IsValid(ent) and ent:Alive() then
-				local pos = ent:LocalToWorld(Vector(0, 0, ent:OBBMaxs().z)):ToScreen()
-				local statustext = ""
-				local playerhealthcolor = Color(255 - (ent:Health() / (ent:GetMaxHealth() or 100) * 255), (ent:Health() / (ent:GetMaxHealth() or 100)) * 255, 0)
-				local text = "HP:" .. ent:Health()
-				local playerinfodisplay = cookie.GetNumber("playerinfodisplay", 1)
-				if ent:Armor() > 0 then text = text .. "|AP:" .. ent:Armor() end
-				statustext = ent:VoiceVolume() > 0.01 and "*speaking*" or ent:IsTyping() and "*typing*" or ""
-				statuscolor = ent:VoiceVolume() > 0.01 and colors.cyan or ent:IsTyping() and colors.yellow or entitycolors.player
-				nametagcolor = playerinfodisplay == 2 and statuscolor or entitycolors.player
-				playerinfodisplayoffset = playerinfodisplay == 3 and 0 or 12
-				if playerinfodisplay == 1 then
-					draw.SimpleText(statustext, "BudgetLabel", pos.x, pos.y - 24, statuscolor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+		if UtilityMenu.Settings.playerinfo then
+			for _, player in ipairs(UtilityMenu.State.EntityCache.Players) do
+				if not IsValid(player) or not player:Alive() then continue end
+				local pos = player:LocalToWorld(Vector(0, 0, player:OBBMaxs().z)):ToScreen()
+				local maxHealth = player:GetMaxHealth() or 100
+				local healthRatio = player:Health() / maxHealth
+				local healthColor = Color(255 - healthRatio * 255, healthRatio * 255, 0)
+				local statusText = ""
+				local statusColor = UtilityMenu.Config.Colors.White
+				if player:VoiceVolume() > 0.01 then
+					statusText = "*speaking*"
+					statusColor = UtilityMenu.Config.Colors.Yellow
+				elseif player:IsTyping() then
+					statusText = "*typing*"
+					statusColor = UtilityMenu.Config.Colors.Cyan
 				end
-				if playerinfodisplay == 1  or playerinfodisplay == 2 or playerinfodisplay == 3 or playerinfodisplay == 4 then
-					draw.SimpleText(ent:Nick(), "BudgetLabel", pos.x, pos.y - playerinfodisplayoffset, nametagcolor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				local playerInfoDisplay = cookie.GetNumber("playerinfodisplay", 1)
+				local nameTagColor = (playerInfoDisplay == 2 or playerInfoDisplay == 5) and statusColor or UtilityMenu.Config.Colors.White
+				local offset = (playerInfoDisplay >= 4) and 0 or 12
+				if playerInfoDisplay == 1 or playerInfoDisplay == 4 then
+					draw.SimpleText(statusText, "BudgetLabel", pos.x, pos.y - offset - 12, statusColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 				end
-				if playerinfodisplay == 1 or playerinfodisplay == 2 or playerinfodisplay == 3 then
-					draw.SimpleText(text, "BudgetLabel", pos.x, pos.y, playerhealthcolor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				if playerInfoDisplay >= 1 and playerInfoDisplay <= 6 then
+					draw.SimpleText(player:Nick(), "BudgetLabel", pos.x, pos.y - offset, nameTagColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				end
+				if playerInfoDisplay >= 1 and playerInfoDisplay <= 3 then
+					local infoText = "HP: " .. player:Health()
+					if player:Armor() > 0 then
+						infoText = infoText .. " | AP: " .. player:Armor()
+					end
+					draw.SimpleText(infoText, "BudgetLabel", pos.x, pos.y, healthColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 				end
 			end
 		end
-	end
-	if settings.minimap then
-		local sizevalues = {150, 200, 250, 300, 400}
-		local scalevalues = {25, 50, 75, 100, 125}
-		local size = sizevalues[cookie.GetNumber("mapsize", 1)]
-		local scale = scalevalues[cookie.GetNumber("mapscale", 1)]
-		local posindex = cookie.GetNumber("mappos", 1)
-		local radius = size / 2
-		local corners = {{x = 16 + radius, y = 16 + radius}, {x = sw - 16 - radius, y = 16 + radius}, {x = 16 + radius, y = sh - 16 - radius}, {x = sw - 16 - radius, y = sh - 16 - radius}}
-		local cx, cy = corners[posindex].x, corners[posindex].y
-		local yaw = EyeAngles().y
-		surface.SetDrawColor(0, 0, 0, 225)
-		surface.DrawRect(cx - radius, cy - radius, radius * 2, radius * 2)
-		for _, ent in ipairs(entitycaches.npcs or {}) do
-			if IsValid(ent) and ent:Alive() then
-				local sx, sy = minimap(ent:GetPos(), yaw, scale, radius)
-				surface.SetDrawColor(colors.red)
-				surface.DrawRect(cx + sx - 2, cy + sy - 2, 4, 4)
+		if UtilityMenu.Settings.minimap then
+			local sizeIndex = cookie.GetNumber("mapsize", 1)
+			local scaleIndex = cookie.GetNumber("mapscale", 1)
+			local posIndex = cookie.GetNumber("mappos", 1)
+			local size = UtilityMenu.Config.MapSizes[sizeIndex] or 150
+			local scale = UtilityMenu.Config.MapScales[scaleIndex] or 25
+			local radius = size / 2
+			local corners = {
+				{x = 16 + radius, y = 16 + radius}, {x = screenWidth - 16 - radius, y = 16 + radius},
+				{x = 16 + radius, y = screenHeight - 16 - radius}, {x = screenWidth - 16 - radius, y = screenHeight - 16 - radius}
+			}
+			local centerX, centerY = corners[posIndex].x, corners[posIndex].y
+			local yaw = EyeAngles().y
+			surface.SetDrawColor(0, 0, 0, 225)
+			surface.DrawRect(centerX - radius, centerY - radius, radius * 2, radius * 2)
+			for _, npc in ipairs(UtilityMenu.State.EntityCache.NPCs) do
+				if not IsValid(npc) or not npc:Alive() then continue end
+				local x, y = UtilityMenu.MinimapProjection(npc:GetPos(), yaw, scale, radius)
+				surface.SetDrawColor(UtilityMenu.Config.Colors.Red)
+				surface.DrawRect(centerX + x - 2, centerY + y - 2, 4, 4)
+			end
+			for _, player in ipairs(UtilityMenu.State.EntityCache.Players) do
+				if not IsValid(player) or player == ply or not player:Alive() then continue end
+				local x, y = UtilityMenu.MinimapProjection(player:GetPos(), yaw, scale, radius)
+				local markerColorSetting = cookie.GetNumber("playermarkercolor", 1)
+				local markerColor = UtilityMenu.Config.EntityColors.Player
+				if markerColorSetting == 2 then
+					if player:VoiceVolume() > 0.01 then
+						markerColor = UtilityMenu.Config.Colors.Yellow
+					elseif player:IsTyping() then
+						markerColor = UtilityMenu.Config.Colors.Cyan
+					end
+				end
+				surface.SetDrawColor(markerColor)
+				surface.DrawRect(centerX + x - 2, centerY + y - 2, 4, 4)
+				draw.SimpleText(player:Nick(), "BudgetLabel", centerX + x, centerY + y, markerColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+			end
+			surface.SetDrawColor(UtilityMenu.Config.Colors.Green)
+			surface.DrawLine(centerX, centerY - 4, centerX - 4, centerY + 4)
+			surface.DrawLine(centerX, centerY - 4, centerX + 4, centerY + 4)
+			surface.DrawLine(centerX - 4, centerY + 4, centerX + 4, centerY + 4)
+		end
+	end)
+	hook.Add("CalcView", "UtilityMenu_FixedCamera", function(ply, pos, angles, fov)
+		if not (UtilityMenu.Settings.noshake or UtilityMenu.Settings.norecoil) then return end
+		if UtilityMenu.Settings.noshake then
+			if not (UtilityMenu.State.FreecamEnabled or ply:ShouldDrawLocalPlayer() or ply:InVehicle()) then
+				angles.r = 0
+				return {origin = pos, angles = angles, fov = cookie.GetNumber("noshakefov", 120)}
 			end
 		end
-		for _, ent in ipairs(entitycaches.players or {}) do
-			if IsValid(ent) and ent ~= ply and ent:Alive() then
-				local sx, sy = minimap(ent:GetPos(), yaw, scale, radius)
-				surface.SetDrawColor(entitycolors.player)
-				surface.DrawRect(cx + sx - 2, cy + sy - 2, 4, 4)
-				draw.SimpleText(ent:Nick(), "BudgetLabel", cx + sx, cy + sy, entitycolors.player, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+		if UtilityMenu.Settings.norecoil then
+			local playerMeta = FindMetaTable("Player")
+			if not playerMeta.OriginalSetEyeAngles then
+				playerMeta.OriginalSetEyeAngles = playerMeta.SetEyeAngles
+				playerMeta.SetEyeAngles = function(self, angle)
+					local source = debug.getinfo(2).short_src or ""
+					if string.find(string.lower(source), "/weapons/") then return end
+					self:OriginalSetEyeAngles(angle)
+				end
+			end
+		elseif not UtilityMenu.Settings.norecoil then
+			local playerMeta = FindMetaTable("Player")
+			if playerMeta.OriginalSetEyeAngles then
+				playerMeta.SetEyeAngles = playerMeta.OriginalSetEyeAngles
+				playerMeta.OriginalSetEyeAngles = nil
 			end
 		end
-		surface.SetDrawColor(colors.green)
-		surface.DrawLine(cx, cy - 4, cx - 4, cy + 4)
-		surface.DrawLine(cx, cy - 4, cx + 4, cy + 4)
-		surface.DrawLine(cx - 4, cy + 4, cx + 4, cy + 4)
-	end
-end)
+	end)
+end
 
-hook.Add("CalcView", "fixedcamera", function(ply, pos, angles, fov)
-	local playermeta = FindMetaTable("Player")
-	if not (settings.noshake or settings.norecoil) then return end
-	if settings.noshake then
-		if not (globalvalues.freecamtoggle or ply:ShouldDrawLocalPlayer() or ply:InVehicle()) then
-			angles.r = 0
-			return {origin = pos, angles = angles, fov = cookie.GetNumber("noshakefov", 120)}
-		end
-	end
-	if settings.norecoil then
-		playermeta.seteyeangles = function(self, angle)
-			if string.find(string.lower(debug.getinfo(2).short_src), "/weapons/") then return end
-			self:_originalseteyeangles(angle)
-		end
-	else
-		playermeta._originalseteyeangles = playermeta.seteyeangles
-	end
-end)
-
-local function createlabel(text, parent)
+function UtilityMenu.CreateLabel(text, parent)
 	local label = vgui.Create("DLabel", parent)
 	label:SetText(text)
 	label:SetFont("DermaDefaultBold")
-	label:SetTextColor(colors.white)
+	label:SetTextColor(UtilityMenu.Config.Colors.White)
 	label:SizeToContents()
 	label:Dock(TOP)
 	label:DockMargin(5, 5, 0, 0)
 	return label
 end
 
-local function createcheckbox(text, key, parent)
+function UtilityMenu.CreateCheckbox(text, key, parent)
 	local checkbox = vgui.Create("DCheckBoxLabel", parent)
 	checkbox:SetText(text)
 	checkbox:SetFont("DermaDefault")
-	checkbox:SetTextColor(colors.white)
-	checkbox:SetValue(settings[key] and true or false)
+	checkbox:SetTextColor(UtilityMenu.Config.Colors.White)
+	local savedValue = cookie.GetNumber(key, 0) == 1
+	UtilityMenu.Settings[key] = UtilityMenu.Settings[key] ~= nil and UtilityMenu.Settings[key] or savedValue
+	checkbox:SetValue(UtilityMenu.Settings[key])
 	checkbox:Dock(TOP)
 	checkbox:SizeToContents()
 	checkbox:DockMargin(10, 5, 0, 0)
-	checkbox.OnChange = function(self, val) settings[key] = val and true or false end
+	checkbox.OnChange = function(self, value)
+		UtilityMenu.Settings[key] = value
+		cookie.Set(key, value and 1 or 0)
+	end
 	return checkbox
 end
 
-local function createButtonGrid(list, onClick, parent)
+function UtilityMenu.CreateButtonGrid(items, onClick, parent)
 	local grid = vgui.Create("DIconLayout", parent)
 	grid:Dock(TOP)
 	grid:SetSpaceX(5)
 	grid:SetSpaceY(5)
 	grid:CenterHorizontal()
 	grid:DockMargin(9, 5, 0, 0)
-	for _, item in ipairs(list) do
-		local btn = grid:Add("DButton")
-		btn:SetText(item:sub(1, 1):upper() .. item:sub(2):lower())
-		btn:SetSize(60, 30)
-		btn.DoClick = function() onClick(item) end
+	for _, item in ipairs(items) do
+		local button = grid:Add("DButton")
+		button:SetText(item:sub(1, 1):upper() .. item:sub(2):lower())
+		button:SetSize(60, 30)
+		
+		button.DoClick = function()
+			onClick(item)
+		end
 	end
 	return grid
 end
 
-local function createSlider(label, min, max, key, parent)
+function UtilityMenu.CreateSlider(label, min, max, key, parent)
 	local slider = vgui.Create("DNumSlider", parent)
 	slider:SetText(label)
 	slider.Label:SetFont("DermaDefault")
-	slider.Label:SetTextColor(colors.white)
+	slider.Label:SetTextColor(UtilityMenu.Config.Colors.White)
 	slider:Dock(TOP)
 	slider:DockMargin(10, 5, 0, 0)
 	slider:SetTall(15)
 	slider:SetMin(min)
 	slider:SetMax(max)
 	slider:SetDecimals(0)
-	local saved = cookie.GetNumber(key, min)
-	slider:SetValue(saved)
-	function slider:OnValueChanged(val)
-		local roundval = math.Round(val)
-		slider:SetValue(roundval)
-		cookie.Set(key, roundval)
+	local savedValue = cookie.GetNumber(key, min)
+	slider:SetValue(savedValue)
+	function slider:OnValueChanged(value)
+		local roundedValue = math.Round(value)
+		slider:SetValue(roundedValue)
+		cookie.Set(key, roundedValue)
 	end
 	return slider
 end
 
-local function createMenu()
+function UtilityMenu.CreateMenu()
 	local frame = vgui.Create("DFrame")
-	local tab = vgui.Create("DPropertySheet", frame)
-	local scrollutility = vgui.Create("DScrollPanel", tab)
-	local scrolldisplay = vgui.Create("DScrollPanel", tab)
-	local scrollsettings = vgui.Create("DScrollPanel", tab)
 	frame:SetSize(300, 400)
 	frame:Center()
 	frame:SetTitle("Utility Menu V6")
 	frame:SetDeleteOnClose(false)
 	frame:SetVisible(false)
-	tab:Dock(FILL)
-	tab:SetFadeTime(0)
-	tab:AddSheet("Utility", scrollutility, "icon16/wrench.png")
-	tab:AddSheet("Display", scrolldisplay, "icon16/monitor.png")
-	tab:AddSheet("Settings", scrollsettings, "icon16/cog.png")
-	createlabel("Miscellaneous options:", scrollutility)
-	createcheckbox("Toggle auto bhop", "autobhop", scrollutility)
-	createcheckbox("Toggle flashlight spam", "flashlightspam", scrollutility)
-	createcheckbox("Toggle freecam", "freecam", scrollutility)
-	createcheckbox("Toggle no recoil", "norecoil", scrollutility)
-	createlabel("Player gestures:", scrollutility)
-	createButtonGrid(acts, function(act) RunConsoleCommand("act", act) end, scrollutility)
-	createlabel("Miscellaneous options:", scrolldisplay)
-	createcheckbox("Draw client info", "clientinfo", scrolldisplay)
-	createcheckbox("Draw prop boxes", "propbox", scrolldisplay)
-	createcheckbox("Show minimap", "minimap", scrolldisplay)
-	createcheckbox("Toggle no shake", "noshake", scrolldisplay)
-	createlabel("NPC options:", scrolldisplay)
-	createcheckbox("Draw NPC boxes", "npcbox", scrolldisplay)
-	createcheckbox("Draw NPC info", "npcinfo", scrolldisplay)
-	createcheckbox("Draw NPC lines", "npcline", scrolldisplay)
-	createlabel("Player Options:", scrolldisplay)
-	createcheckbox("Draw player boxes", "playerbox", scrolldisplay)
-	createcheckbox("Draw player info", "playerinfo", scrolldisplay)
-	createcheckbox("Draw player lines", "playerline", scrolldisplay)
-	createlabel("Freecam settings:", scrollsettings)
-	createSlider("Speed:", 1, 50, "basespeed", scrollsettings)
-	createlabel("Client info settings:", scrollsettings)
-	createSlider("Info:", 1, 3, "infodisplay", scrollsettings)
-	createlabel("Map settings:", scrollsettings)
-	createSlider("Pos:", 1, 4, "mappos", scrollsettings)
-	createSlider("Scale:", 1, 5, "mapscale", scrollsettings)
-	createSlider("Size:", 1, 5, "mapsize", scrollsettings)
-	createlabel("No shake:", scrollsettings)
-	createSlider("FOV", 80, 170, "noshakefov", scrollsettings)
-	createlabel("Player info settings:", scrollsettings)
-	createSlider("Info:", 1, 4, "playerinfodisplay", scrollsettings)
+	local tabPanel = vgui.Create("DPropertySheet", frame)
+	tabPanel:Dock(FILL)
+	tabPanel:SetFadeTime(0)
+	local utilityScroll = vgui.Create("DScrollPanel", tabPanel)
+	tabPanel:AddSheet("Utility", utilityScroll, "icon16/wrench.png")
+	UtilityMenu.CreateLabel("Miscellaneous options:", utilityScroll)
+	UtilityMenu.CreateCheckbox("Toggle auto bhop", "autobhop", utilityScroll)
+	UtilityMenu.CreateCheckbox("Toggle flashlight spam", "flashlightspam", utilityScroll)
+	UtilityMenu.CreateCheckbox("Toggle freecam", "freecam", utilityScroll)
+	UtilityMenu.CreateCheckbox("Toggle no recoil", "norecoil", utilityScroll)
+	UtilityMenu.CreateLabel("Player gestures:", utilityScroll)
+	UtilityMenu.CreateButtonGrid(UtilityMenu.Config.Gestures, function(gesture)
+		RunConsoleCommand("act", gesture)
+	end, utilityScroll)
+	local displayScroll = vgui.Create("DScrollPanel", tabPanel)
+	tabPanel:AddSheet("Display", displayScroll, "icon16/monitor.png")
+	UtilityMenu.CreateLabel("Miscellaneous options:", displayScroll)
+	UtilityMenu.CreateCheckbox("Draw client info", "clientinfo", displayScroll)
+	UtilityMenu.CreateCheckbox("Draw prop boxes", "propbox", displayScroll)
+	UtilityMenu.CreateCheckbox("Show minimap", "minimap", displayScroll)
+	UtilityMenu.CreateCheckbox("Toggle no shake", "noshake", displayScroll)
+	UtilityMenu.CreateLabel("NPC options:", displayScroll)
+	UtilityMenu.CreateCheckbox("Draw NPC bones", "npcbones", displayScroll)
+	UtilityMenu.CreateCheckbox("Draw NPC boxes", "npcbox", displayScroll)
+	UtilityMenu.CreateCheckbox("Draw NPC info", "npcinfo", displayScroll)
+	UtilityMenu.CreateCheckbox("Draw NPC lines", "npcline", displayScroll)
+	UtilityMenu.CreateLabel("Player Options:", displayScroll)
+	UtilityMenu.CreateCheckbox("Draw player bones", "playerbones", displayScroll)
+	UtilityMenu.CreateCheckbox("Draw player boxes", "playerbox", displayScroll)
+	UtilityMenu.CreateCheckbox("Draw player info", "playerinfo", displayScroll)
+	UtilityMenu.CreateCheckbox("Draw player lines", "playerline", displayScroll)
+	local settingsScroll = vgui.Create("DScrollPanel", tabPanel)
+	tabPanel:AddSheet("Settings", settingsScroll, "icon16/cog.png")
+	UtilityMenu.CreateLabel("Freecam settings:", settingsScroll)
+	UtilityMenu.CreateSlider("Speed:", 1, 50, "basespeed", settingsScroll)
+	UtilityMenu.CreateLabel("Client info settings:", settingsScroll)
+	UtilityMenu.CreateSlider("Info:", 1, 3, "infodisplay", settingsScroll)
+	UtilityMenu.CreateLabel("Map settings:", settingsScroll)
+	UtilityMenu.CreateSlider("Pos:", 1, 4, "mappos", settingsScroll)
+	UtilityMenu.CreateSlider("Scale:", 1, 5, "mapscale", settingsScroll)
+	UtilityMenu.CreateSlider("Size:", 1, 5, "mapsize", settingsScroll)
+	UtilityMenu.CreateSlider("Player status:", 1, 2, "playermarkercolor", settingsScroll)
+	UtilityMenu.CreateLabel("No shake:", settingsScroll)
+	UtilityMenu.CreateSlider("FOV", 80, 170, "noshakefov", settingsScroll)
+	UtilityMenu.CreateLabel("Player info settings:", settingsScroll)
+	UtilityMenu.CreateSlider("Info:", 1, 6, "playerinfodisplay", settingsScroll)
 	return frame
 end
 
 concommand.Add("open_utility_menu", function()
-	if IsValid(utilitymenu) then
-		utilitymenu:SetVisible(true)
-		utilitymenu:MakePopup()
-	else
-		utilitymenu = createMenu()
-		utilitymenu:SetVisible(true)
-		utilitymenu:MakePopup()
+	if not UtilityMenu.Menu or not IsValid(UtilityMenu.Menu) then
+		UtilityMenu.Menu = UtilityMenu.CreateMenu()
 	end
+	UtilityMenu.Menu:SetVisible(true)
+	UtilityMenu.Menu:MakePopup()
 end)
 
 concommand.Add("toggle_freecam", function()
 	local ply = LocalPlayer()
-	if not settings.freecam then return end
-	if globalvalues.freecamtoggle then
-		globalvalues.freecamtoggle = false
-		hook.Remove("CalcView", "freecamview")
-		hook.Remove("PlayerBindPress", "freecamblockkeys")
+	if not UtilityMenu.Settings.freecam then return end
+	if UtilityMenu.State.FreecamEnabled then
+		UtilityMenu.State.FreecamEnabled = false
+		hook.Remove("CalcView", "UtilityMenu_FreecamView")
+		hook.Remove("PlayerBindPress", "UtilityMenu_FreecamBlockKeys")
 	else
-		globalvalues.freecamtoggle = true
-		globalvalues.freecampos = EyePos()
-		globalvalues.freecamang = Angle(EyeAngles().p, EyeAngles().y, 0)
-        globalvalues.frozenplayerviewang = ply:EyeAngles()
-		hook.Add("CalcView", "freecamview", function(_, _, _, fov)
-			return {origin = globalvalues.freecampos, angles = globalvalues.freecamang, fov = fov, drawviewer = true}
+		UtilityMenu.State.FreecamEnabled = true
+		UtilityMenu.State.FreecamPosition = EyePos()
+		UtilityMenu.State.FreecamAngle = Angle(EyeAngles().p, EyeAngles().y, 0)
+		UtilityMenu.State.FrozenViewAngle = ply:EyeAngles()
+		hook.Add("CalcView", "UtilityMenu_FreecamView", function(_, _, _, fov)
+			return {origin = UtilityMenu.State.FreecamPosition, angles = UtilityMenu.State.FreecamAngle, fov = fov, drawviewer = true}
 		end)
 	end
 end)
+
+UtilityMenu.Init()
+UtilityMenu.SetupHooks()
