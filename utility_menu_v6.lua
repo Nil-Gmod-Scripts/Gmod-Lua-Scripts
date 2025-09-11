@@ -17,7 +17,9 @@ end
 
 CleanUpHooks()
 
-if not UtilityMenu then UtilityMenu = {} end
+UtilityMenu = UtilityMenu or {}
+
+UtilityMenu.Settings = UtilityMenu.Settings or {}
 
 UtilityMenu.Config = UtilityMenu.Config or {
 	Colors = {
@@ -27,20 +29,28 @@ UtilityMenu.Config = UtilityMenu.Config or {
 	EntityColors = {
 		Prop = Color(0, 0, 255), NPC = Color(255, 255, 255), Player = Color(255, 255, 255)
 	},
+	MapSizes = {150, 200, 250, 300, 400},
+	MapScales = {25, 50, 75, 100, 125},
 	Gestures = {
 		"agree", "becon", "bow", "cheer", "dance", "disagree", "forward", "group",
 		"halt", "laugh", "muscle", "pers", "robot", "salute", "wave", "zombie"
 	},
-	MapSizes = {150, 200, 250, 300, 400},
-	MapScales = {25, 50, 75, 100, 125}
+	PropKillProps = {
+		[KEY_C] = "models/props_phx/construct/metal_plate4x4.mdl", [KEY_G] = "models/XQM/CoasterTrack/slope_225_3.mdl", [KEY_Q] = "models/props/cs_militia/refrigerator01.mdl",
+		[KEY_R] = "models/props_canal/canal_bars004.mdl", [KEY_V] = "models/props/de_tides/gate_large.mdl", [KEY_X] = "models/props_junk/sawblade001a.mdl"
+	},
+	PkblockedBinds = {
+		"+attack", "+attack2", "+back", "+duck", "+forward", "+jump", "+moveleft", "+moveright", "+showscores", "+speed", "+use", "+walk", "gmod_undo", "gm_showteam",
+		"impulse 100", "impulse 201", "kill", "messagemode", "open_utility_menu", "slot1", "slot2", "slot3", "slot4", "slot5", "slot6", "toggle_freecam",
+	},
+	FreecamblockedBinds = {"+showscores", "kill", "messagemode", "open_utility_menu", "toggle_freecam"}
 }
 
 UtilityMenu.State = UtilityMenu.State or {
 	ScriptRan = false, FreecamEnabled = false, FreecamPosition = Vector(0, 0, 0), FreecamAngle = Angle(0, 0, 0),
-	FrozenViewAngle = Angle(0, 0, 0), LastCacheUpdate = 0, EntityCache = {Players = {}, NPCs = {}, Props = {}}
+	FrozenViewAngle = Angle(0, 0, 0), LastCacheUpdate = 0, EntityCache = {Players = {}, NPCs = {}, Props = {}},
+	LastPropKeyState = {}
 }
-
-UtilityMenu.Settings = UtilityMenu.Settings or {}
 
 function UtilityMenu.Init()
 	if not UtilityMenu.State.ScriptRan then
@@ -129,8 +139,7 @@ function UtilityMenu.SetupHooks()
 			UtilityMenu.State.FreecamPosition = UtilityMenu.State.FreecamPosition + wishMove * speed
 		end
 		hook.Add("PlayerBindPress", "UtilityMenu_FreecamBlockKeys", function(_, bind)
-			local blockedBinds = {"toggle_freecam", "messagemode", "+showscores", "open_utility_menu", "kill"}
-			for _, blocked in ipairs(blockedBinds) do
+			for _, blocked in ipairs(UtilityMenu.Config.FreecamblockedBinds) do
 				if string.find(bind, blocked) then return false end
 			end
 			return true
@@ -144,13 +153,33 @@ function UtilityMenu.SetupHooks()
 		end
 	end)
 	hook.Add("Think", "UtilityMenu_FlashlightSpam", function()
-		if not UtilityMenu.Settings.flashlightspam then return end
+		if not UtilityMenu.Settings.flashlightspam or UtilityMenu.State.FreecamEnabled then return end
 		if not input.IsKeyDown(KEY_F) or vgui.GetKeyboardFocus() or gui.IsGameUIVisible() then return end
 		RunConsoleCommand("impulse", "100")
 	end)
+	hook.Add("Think", "UtilityMenu_PropKillSpawner", function()
+		if not UtilityMenu.Settings.pkbinds or UtilityMenu.State.FreecamEnabled then
+			hook.Remove("PlayerBindPress", "UtilityMenu_PropKillBlockKeys")
+			return
+		end
+		if vgui.GetKeyboardFocus() or gui.IsGameUIVisible() then return end
+		for key, model in pairs(UtilityMenu.Config.PropKillProps) do
+			local isDown = input.IsKeyDown(key)
+			if isDown and not UtilityMenu.State.LastPropKeyState[key] then
+				RunConsoleCommand("gm_spawn", model)
+			end
+			UtilityMenu.State.LastPropKeyState[key] = isDown
+		end
+		hook.Add("PlayerBindPress", "UtilityMenu_PropKillBlockKeys", function(_, bind)
+			for _, blocked in ipairs(UtilityMenu.Config.PkblockedBinds) do
+				if string.find(bind, blocked) then return false end
+			end
+			return true
+		end)
+	end)
 	hook.Add("PostDrawOpaqueRenderables", "UtilityMenu_DrawEntityBoxes", function()
 		local drawFunctions = {
-			propbox = {cache = UtilityMenu.State.EntityCache.Props, color = UtilityMenu.Config.EntityColors.Prop},
+			propbox = {cache = UtilityMenu.State.EntityCache.Props, color = UtilityMenu.Config.EntityColors.Prop, useAngle = true},
 			npcbox = {cache = UtilityMenu.State.EntityCache.NPCs, color = UtilityMenu.Config.EntityColors.NPC, checkAlive = true},
 			playerbox = {cache = UtilityMenu.State.EntityCache.Players, color = UtilityMenu.Config.EntityColors.Player, checkAlive = true}
 		}
@@ -414,6 +443,7 @@ function UtilityMenu.CreateMenu()
 	UtilityMenu.CreateCheckbox("Toggle flashlight spam", "flashlightspam", utilityScroll)
 	UtilityMenu.CreateCheckbox("Toggle freecam", "freecam", utilityScroll)
 	UtilityMenu.CreateCheckbox("Toggle no recoil", "norecoil", utilityScroll)
+	UtilityMenu.CreateCheckbox("Toggle pk binds", "pkbinds", utilityScroll)
 	UtilityMenu.CreateLabel("Player gestures:", utilityScroll)
 	UtilityMenu.CreateButtonGrid(UtilityMenu.Config.Gestures, function(gesture) RunConsoleCommand("act", gesture) end, utilityScroll)
 	UtilityMenu.CreateLabel("Miscellaneous options:", displayScroll)
