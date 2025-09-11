@@ -1,12 +1,12 @@
 if SERVER then return end
 
 local function CleanUpHooks()
-	local hooksToRemove = {
+	local hooksToRemove = hooksToRemove or {
 		"Think", "updatecache", "CreateMove", "autobhopandfreecam", "PlayerBindPress", "freecamblockkeys",
 		"PostDrawOpaqueRenderables", "drawentityboxes", "PostDrawTranslucentRenderables", "drawlines",
 		"HUDPaint", "drawinfo", "HUDPaint", "eyeangleupdater", "CalcView", "fixedcamera", "Think", "flashlightspam"
 	}
-	local commandsToRemove = {"open_utility_menu", "toggle_freecam"}
+	local commandsToRemove = commandsToRemove or {"open_utility_menu", "toggle_freecam"}
 	for i = 1, #hooksToRemove, 2 do
 		hook.Remove(hooksToRemove[i], hooksToRemove[i+1])
 	end
@@ -19,7 +19,7 @@ CleanUpHooks()
 
 if not UtilityMenu then UtilityMenu = {} end
 
-UtilityMenu.Config = {
+UtilityMenu.Config = UtilityMenu.Config or {
 	Colors = {
 		White = Color(255, 255, 255), Cyan = Color(0, 255, 255), Yellow = Color(255, 255, 0), Green = Color(0, 255, 0),
 		Black = Color(0, 0, 0), Purple = Color(180, 0, 180), Red = Color(255, 0, 0), Blue = Color(0, 0, 255)
@@ -66,10 +66,8 @@ function UtilityMenu.UpdateEntityCache()
 end
 
 function UtilityMenu.MinimapProjection(position, yaw, scale, radius)
-	local delta = position - EyePos()
-	local angle = math.rad(-yaw - 90)
-	local x = -(delta.x * math.cos(angle) - delta.y * math.sin(angle))
-	local y = delta.x * math.sin(angle) + delta.y * math.cos(angle)
+	local delta, angle = position - EyePos(), math.rad(-yaw - 90)
+	local x, y = -(delta.x * math.cos(angle) - delta.y * math.sin(angle)), delta.x * math.sin(angle) + delta.y * math.cos(angle)
 	x, y = x / scale, y / scale
 	return math.Clamp(x, -radius, radius), math.Clamp(y, -radius, radius)
 end
@@ -85,8 +83,7 @@ function UtilityMenu.DrawBones(entity, color)
 	for i = 0, entity:GetBoneCount() - 1 do
 		local parent = entity.BoneParents[i]
 		if not parent or parent == -1 then continue end
-		local bonePos1 = entity:GetBonePosition(i)
-		local bonePos2 = entity:GetBonePosition(parent)
+		local bonePos1, bonePos2 = entity:GetBonePosition(i), entity:GetBonePosition(parent)
 		if bonePos1 and bonePos2 and bonePos1:DistToSqr(origin) > 1 and bonePos2:DistToSqr(origin) > 1 then
 			render.DrawLine(bonePos1, bonePos2, color, false)
 		end
@@ -94,6 +91,9 @@ function UtilityMenu.DrawBones(entity, color)
 end
 
 function UtilityMenu.SetupHooks()
+	hook.Add("HUDPaint", "eyeangleupdater", function()
+		local _ = EyeAngles()
+	end)
 	hook.Add("Think", "UtilityMenu_UpdateCache", function()
 		if CurTime() - UtilityMenu.State.LastCacheUpdate > 0.1 then
 			UtilityMenu.UpdateEntityCache()
@@ -111,7 +111,7 @@ function UtilityMenu.SetupHooks()
 		end
 		if vgui.GetKeyboardFocus() or gui.IsGameUIVisible() then return end
 		local baseSpeed = cookie.GetNumber("basespeed", 3)
-		local sensitivity = 0.015
+		local sensitivity = 0.022
 		local mouseX, mouseY = cmd:GetMouseX() * sensitivity, cmd:GetMouseY() * sensitivity
 		local speed = input.IsKeyDown(KEY_LSHIFT) and baseSpeed * 10 or baseSpeed
 		UtilityMenu.State.FreecamAngle.p = math.Clamp(UtilityMenu.State.FreecamAngle.p + mouseY, -89, 89)
@@ -165,18 +165,19 @@ function UtilityMenu.SetupHooks()
 	end)
 	hook.Add("PostDrawTranslucentRenderables", "UtilityMenu_DrawLinesAndBones", function()
 		local ply = LocalPlayer()
-		if not ply:Alive() or ply:ShouldDrawLocalPlayer() then return end
 		local startPos = ply:EyePos() + ply:GetAimVector() * 50
 		local lineFunctions = {
 			npcline = {cache = UtilityMenu.State.EntityCache.NPCs, color = UtilityMenu.Config.EntityColors.NPC},
 			playerline = {cache = UtilityMenu.State.EntityCache.Players, color = UtilityMenu.Config.EntityColors.Player}
 		}
-		for setting, data in pairs(lineFunctions) do
-			if not UtilityMenu.Settings[setting] then continue end
-			for _, ent in ipairs(data.cache) do
-				if not IsValid(ent) or not ent:Alive() then continue end
-				local endPos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
-				render.DrawLine(startPos, endPos, data.color, false)
+		if not ply:Alive() or ply:ShouldDrawLocalPlayer() then
+			for setting, data in pairs(lineFunctions) do
+				if not UtilityMenu.Settings[setting] then continue end
+				for _, ent in ipairs(data.cache) do
+					if not IsValid(ent) or not ent:Alive() then continue end
+					local endPos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
+					render.DrawLine(startPos, endPos, data.color, false)
+				end
 			end
 		end
 		local boneFunctions = {
@@ -200,11 +201,11 @@ function UtilityMenu.SetupHooks()
 			local infoDisplay = cookie.GetNumber("infodisplay", 1)
 			local offset = (infoDisplay == 3) and 75 or 87
 			if infoDisplay == 1 or infoDisplay == 2 then
-				draw.SimpleText("Speed: " .. math.Round(ply:GetVelocity():Length()) .. "u/s", "BudgetLabel", screenWidth / 2, screenHeight / 2 + 75, UtilityMenu.Config.Colors.White, TEXT_ALIGN_CENTER)
+				draw.SimpleText("Speed:" .. math.Round(ply:GetVelocity():Length()) .. "u/s", "BudgetLabel", screenWidth / 2, screenHeight / 2 + 75, UtilityMenu.Config.Colors.White, TEXT_ALIGN_CENTER)
 			end
 			if infoDisplay == 1 or infoDisplay == 3 then
 				local fpsColor = Color(255 - math.min(fps / 60, 1) * 255, math.min(fps / 60, 1) * 255, 0)
-				draw.SimpleText("FPS: " .. fps, "BudgetLabel", screenWidth / 2, screenHeight / 2 + offset, fpsColor, TEXT_ALIGN_CENTER)
+				draw.SimpleText("FPS:" .. fps, "BudgetLabel", screenWidth / 2, screenHeight / 2 + offset, fpsColor, TEXT_ALIGN_CENTER)
 			end
 		end
 		if UtilityMenu.Settings.npcinfo then
@@ -215,7 +216,7 @@ function UtilityMenu.SetupHooks()
 				local healthRatio = npc:Health() / maxHealth
 				local healthColor = Color(255 - healthRatio * 255, healthRatio * 255, 0)
 				draw.SimpleText(npc:GetClass(), "BudgetLabel", pos.x, pos.y - 12, UtilityMenu.Config.EntityColors.NPC, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
-				draw.SimpleText("HP: " .. npc:Health(), "BudgetLabel", pos.x, pos.y, healthColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				draw.SimpleText("HP:" .. npc:Health(), "BudgetLabel", pos.x, pos.y, healthColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 			end
 		end
 		if UtilityMenu.Settings.playerinfo then
@@ -244,9 +245,9 @@ function UtilityMenu.SetupHooks()
 					draw.SimpleText(player:Nick(), "BudgetLabel", pos.x, pos.y - offset, nameTagColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 				end
 				if playerInfoDisplay >= 1 and playerInfoDisplay <= 3 then
-					local infoText = "HP: " .. player:Health()
+					local infoText = "HP:" .. player:Health()
 					if player:Armor() > 0 then
-						infoText = infoText .. " | AP: " .. player:Armor()
+						infoText = infoText .. "|AP:" .. player:Armor()
 					end
 					draw.SimpleText(infoText, "BudgetLabel", pos.x, pos.y, healthColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 				end
@@ -403,18 +404,18 @@ function UtilityMenu.CreateMenu()
 	tabPanel:Dock(FILL)
 	tabPanel:SetFadeTime(0)
 	local utilityScroll = vgui.Create("DScrollPanel", tabPanel)
+	local displayScroll = vgui.Create("DScrollPanel", tabPanel)
+	local settingsScroll = vgui.Create("DScrollPanel", tabPanel)
 	tabPanel:AddSheet("Utility", utilityScroll, "icon16/wrench.png")
+	tabPanel:AddSheet("Display", displayScroll, "icon16/monitor.png")
+	tabPanel:AddSheet("Settings", settingsScroll, "icon16/cog.png")
 	UtilityMenu.CreateLabel("Miscellaneous options:", utilityScroll)
 	UtilityMenu.CreateCheckbox("Toggle auto bhop", "autobhop", utilityScroll)
 	UtilityMenu.CreateCheckbox("Toggle flashlight spam", "flashlightspam", utilityScroll)
 	UtilityMenu.CreateCheckbox("Toggle freecam", "freecam", utilityScroll)
 	UtilityMenu.CreateCheckbox("Toggle no recoil", "norecoil", utilityScroll)
 	UtilityMenu.CreateLabel("Player gestures:", utilityScroll)
-	UtilityMenu.CreateButtonGrid(UtilityMenu.Config.Gestures, function(gesture)
-		RunConsoleCommand("act", gesture)
-	end, utilityScroll)
-	local displayScroll = vgui.Create("DScrollPanel", tabPanel)
-	tabPanel:AddSheet("Display", displayScroll, "icon16/monitor.png")
+	UtilityMenu.CreateButtonGrid(UtilityMenu.Config.Gestures, function(gesture) RunConsoleCommand("act", gesture) end, utilityScroll)
 	UtilityMenu.CreateLabel("Miscellaneous options:", displayScroll)
 	UtilityMenu.CreateCheckbox("Draw client info", "clientinfo", displayScroll)
 	UtilityMenu.CreateCheckbox("Draw prop boxes", "propbox", displayScroll)
@@ -430,8 +431,6 @@ function UtilityMenu.CreateMenu()
 	UtilityMenu.CreateCheckbox("Draw player boxes", "playerbox", displayScroll)
 	UtilityMenu.CreateCheckbox("Draw player info", "playerinfo", displayScroll)
 	UtilityMenu.CreateCheckbox("Draw player lines", "playerline", displayScroll)
-	local settingsScroll = vgui.Create("DScrollPanel", tabPanel)
-	tabPanel:AddSheet("Settings", settingsScroll, "icon16/cog.png")
 	UtilityMenu.CreateLabel("Freecam settings:", settingsScroll)
 	UtilityMenu.CreateSlider("Speed:", 1, 50, "basespeed", settingsScroll)
 	UtilityMenu.CreateLabel("Client info settings:", settingsScroll)
