@@ -121,7 +121,7 @@ function UtilityMenu.SetupHooks()
 		end
 		if vgui.GetKeyboardFocus() or gui.IsGameUIVisible() then return end
 		local baseSpeed = cookie.GetNumber("basespeed", 3)
-		local sensitivity = 0.022
+		local sensitivity = 0.0175
 		local mouseX, mouseY = cmd:GetMouseX() * sensitivity, cmd:GetMouseY() * sensitivity
 		local speed = input.IsKeyDown(KEY_LSHIFT) and baseSpeed * 10 or baseSpeed
 		UtilityMenu.State.FreecamAngle.p = math.Clamp(UtilityMenu.State.FreecamAngle.p + mouseY, -89, 89)
@@ -327,12 +327,6 @@ function UtilityMenu.SetupHooks()
 	end)
 	hook.Add("CalcView", "UtilityMenu_FixedCamera", function(ply, pos, angles, fov)
 		if not (UtilityMenu.Settings.noshake or UtilityMenu.Settings.norecoil) then return end
-		if UtilityMenu.Settings.noshake then
-			if not (UtilityMenu.State.FreecamEnabled or ply:ShouldDrawLocalPlayer() or ply:InVehicle()) then
-				angles.r = 0
-				return {origin = pos, angles = angles, fov = cookie.GetNumber("noshakefov", 120)}
-			end
-		end
 		if UtilityMenu.Settings.norecoil then
 			local playerMeta = FindMetaTable("Player")
 			if not playerMeta.OriginalSetEyeAngles then
@@ -343,11 +337,17 @@ function UtilityMenu.SetupHooks()
 					self:OriginalSetEyeAngles(angle)
 				end
 			end
-		elseif not UtilityMenu.Settings.norecoil then
+		else
 			local playerMeta = FindMetaTable("Player")
 			if playerMeta.OriginalSetEyeAngles then
 				playerMeta.SetEyeAngles = playerMeta.OriginalSetEyeAngles
 				playerMeta.OriginalSetEyeAngles = nil
+			end
+		end
+		if UtilityMenu.Settings.noshake then
+			if not (UtilityMenu.State.FreecamEnabled or ply:ShouldDrawLocalPlayer() or ply:InVehicle()) then
+				angles.r = 0
+				return {origin = pos, angles = angles, fov = cookie.GetNumber("noshakefov", 120)}
 			end
 		end
 	end)
