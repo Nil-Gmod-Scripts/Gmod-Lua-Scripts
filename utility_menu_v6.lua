@@ -1,21 +1,19 @@
 if SERVER then return end
 
-local function CleanUpHooks()
-	local hooksToRemove = hooksToRemove or {
-		"Think", "updatecache", "CreateMove", "autobhopandfreecam", "PlayerBindPress", "freecamblockkeys",
-		"PostDrawOpaqueRenderables", "drawentityboxes", "PostDrawTranslucentRenderables", "drawlines",
-		"HUDPaint", "drawinfo", "HUDPaint", "eyeangleupdater", "CalcView", "fixedcamera", "Think", "flashlightspam"
-	}
-	local commandsToRemove = commandsToRemove or {"open_utility_menu", "toggle_freecam"}
-	for i = 1, #hooksToRemove, 2 do
-		hook.Remove(hooksToRemove[i], hooksToRemove[i+1])
-	end
-	for _, cmd in ipairs(commandsToRemove) do
-		concommand.Remove(cmd)
-	end
+hooksToRemove = hooksToRemove or {
+	"Think", "updatecache", "CreateMove", "autobhopandfreecam", "PlayerBindPress", "freecamblockkeys", "PostDrawOpaqueRenderables", "drawentityboxes",
+	"PostDrawTranslucentRenderables", "drawlines", "HUDPaint", "drawinfo", "HUDPaint", "eyeangleupdater", "CalcView", "fixedcamera", "Think", "flashlightspam"
+}
+
+commandsToRemove = commandsToRemove or {"open_utility_menu", "toggle_freecam"}
+
+for i = 1, #hooksToRemove, 2 do
+	hook.Remove(hooksToRemove[i], hooksToRemove[i+1])
 end
 
-CleanUpHooks()
+for _, cmd in ipairs(commandsToRemove) do
+	concommand.Remove(cmd)
+end
 
 UtilityMenu = UtilityMenu or {}
 
@@ -26,15 +24,10 @@ UtilityMenu.Config = UtilityMenu.Config or {
 		White = Color(255, 255, 255), Cyan = Color(0, 255, 255), Yellow = Color(255, 255, 0), Green = Color(0, 255, 0),
 		Black = Color(0, 0, 0), Purple = Color(180, 0, 180), Red = Color(255, 0, 0), Blue = Color(0, 0, 255)
 	},
-	EntityColors = {
-		Prop = Color(0, 0, 255), NPC = Color(255, 255, 255), Player = Color(255, 255, 255)
-	},
+	EntityColors = {Prop = Color(0, 0, 255), NPC = Color(255, 255, 255), Player = Color(255, 255, 255)},
 	MapSizes = {150, 200, 250, 300, 400},
 	MapScales = {25, 50, 75, 100, 125},
-	Gestures = {
-		"agree", "becon", "bow", "cheer", "dance", "disagree", "forward", "group",
-		"halt", "laugh", "muscle", "pers", "robot", "salute", "wave", "zombie"
-	},
+	Gestures = {"agree", "becon", "bow", "cheer", "dance", "disagree", "forward", "group", "halt", "laugh", "muscle", "pers", "robot", "salute", "wave", "zombie"},
 	PropKillProps = {
 		[KEY_C] = "models/props_phx/construct/metal_plate4x4.mdl", [KEY_G] = "models/XQM/CoasterTrack/slope_225_3.mdl", [KEY_Q] = "models/props/cs_militia/refrigerator01.mdl",
 		[KEY_R] = "models/props_canal/canal_bars004.mdl", [KEY_V] = "models/props/de_tides/gate_large.mdl", [KEY_X] = "models/props_junk/sawblade001a.mdl"
