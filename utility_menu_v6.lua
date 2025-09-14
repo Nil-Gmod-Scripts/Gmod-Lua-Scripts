@@ -32,17 +32,18 @@ UtilityMenu.Config = UtilityMenu.Config or {
 		[KEY_C] = "models/props_phx/construct/metal_plate4x4.mdl", [KEY_G] = "models/XQM/CoasterTrack/slope_225_3.mdl", [KEY_Q] = "models/props/cs_militia/refrigerator01.mdl",
 		[KEY_R] = "models/props_canal/canal_bars004.mdl", [KEY_V] = "models/props/de_tides/gate_large.mdl", [KEY_X] = "models/props_junk/sawblade001a.mdl"
 	},
-	PkblockedBinds = {
+	PkAllowedBinds = {
 		"+attack", "+attack2", "+back", "+duck", "+forward", "+jump", "+moveleft", "+moveright", "+showscores", "+speed", "+use", "+walk", "gmod_undo", "gm_showteam",
 		"impulse 100", "impulse 201", "kill", "messagemode", "open_utility_menu", "slot1", "slot2", "slot3", "slot4", "slot5", "slot6", "toggle_freecam",
 	},
-	FreecamblockedBinds = {"+showscores", "kill", "messagemode", "open_utility_menu", "toggle_freecam"}
+	FreecamAllowedBinds = {"+showscores", "kill", "messagemode", "open_utility_menu", "toggle_freecam"},
+	FreecamReleaseKeys = {"-forward", "-back", "-moveleft", "-moveright", "-jump", "-duck", "-attack", "-attack2", "-reload"}
 }
 
 UtilityMenu.State = UtilityMenu.State or {
 	ScriptRan = false, FreecamEnabled = false, FreecamPosition = Vector(0, 0, 0), FreecamAngle = Angle(0, 0, 0),
 	FrozenViewAngle = Angle(0, 0, 0), LastCacheUpdate = 0, EntityCache = {Players = {}, NPCs = {}, Props = {}},
-	LastPropKeyState = {}
+	LastPropKeyState = {}, FreecamReleaseKeysState = false
 }
 
 function UtilityMenu.Init()
@@ -94,7 +95,7 @@ function UtilityMenu.DrawBones(entity, color)
 end
 
 function UtilityMenu.SetupHooks()
-	hook.Add("HUDPaint", "eyeangleupdater", function()
+	hook.Add("HUDPaint", "UtilityMenu_EyeAngleUpdater", function()
 		local _ = EyeAngles()
 	end)
 	hook.Add("Think", "UtilityMenu_UpdateCache", function()
@@ -104,36 +105,44 @@ function UtilityMenu.SetupHooks()
 		end
 	end)
 	hook.Add("CreateMove", "UtilityMenu_Freecam", function(cmd)
-		if not UtilityMenu.Settings.freecam or not UtilityMenu.State.FreecamEnabled then
-			if UtilityMenu.State.FreecamEnabled then
-				UtilityMenu.State.FreecamEnabled = false
-				hook.Remove("CalcView", "UtilityMenu_FreecamView")
-				hook.Remove("PlayerBindPress", "UtilityMenu_FreecamBlockKeys")
-			end
+		if not UtilityMenu.State.FreecamEnabled then
+			UtilityMenu.State.FreecamReleaseKeysState = false
+			hook.Remove("CalcView", "UtilityMenu_FreecamView")
+			hook.Remove("PlayerBindPress", "UtilityMenu_FreecamBlockKeys")
 			return
 		end
 		if vgui.GetKeyboardFocus() or gui.IsGameUIVisible() then return end
+		if not UtilityMenu.State.FreecamReleaseKeysState then
+			for _, CmdStr in ipairs(UtilityMenu.Config.FreecamReleaseKeys) do
+				LocalPlayer():ConCommand(CmdStr)
+			end
+			UtilityMenu.State.FreecamReleaseKeysState = true
+		end
 		local baseSpeed = cookie.GetNumber("basespeed", 3)
 		local sensitivity = 0.0175
-		local mouseX, mouseY = cmd:GetMouseX() * sensitivity, cmd:GetMouseY() * sensitivity
+		local mouseX = cmd:GetMouseX() * sensitivity
+		local mouseY = cmd:GetMouseY() * sensitivity
 		local speed = input.IsKeyDown(KEY_LSHIFT) and baseSpeed * 10 or baseSpeed
-		UtilityMenu.State.FreecamAngle.p = math.Clamp(UtilityMenu.State.FreecamAngle.p + mouseY, -89, 89)
-		UtilityMenu.State.FreecamAngle.y = UtilityMenu.State.FreecamAngle.y - mouseX
+		local ang = UtilityMenu.State.FreecamAngle
+		ang.p = math.Clamp(ang.p + mouseY, -89, 89)
+		ang.y = ang.y - mouseX
 		cmd:SetViewAngles(UtilityMenu.State.FrozenViewAngle)
 		local wishMove = Vector()
-		if input.IsKeyDown(KEY_W) then wishMove = wishMove + UtilityMenu.State.FreecamAngle:Forward() end
-		if input.IsKeyDown(KEY_S) then wishMove = wishMove - UtilityMenu.State.FreecamAngle:Forward() end
-		if input.IsKeyDown(KEY_D) then wishMove = wishMove + UtilityMenu.State.FreecamAngle:Right() end
-		if input.IsKeyDown(KEY_A) then wishMove = wishMove - UtilityMenu.State.FreecamAngle:Right() end
-		if input.IsKeyDown(KEY_SPACE) then wishMove = wishMove + UtilityMenu.State.FreecamAngle:Up() end
-		if input.IsKeyDown(KEY_LCONTROL) then wishMove = wishMove - UtilityMenu.State.FreecamAngle:Up() end
+		if input.IsKeyDown(KEY_W) then wishMove = wishMove + ang:Forward() end
+		if input.IsKeyDown(KEY_S) then wishMove = wishMove - ang:Forward() end
+		if input.IsKeyDown(KEY_D) then wishMove = wishMove + ang:Right() end
+		if input.IsKeyDown(KEY_A) then wishMove = wishMove - ang:Right() end
+		if input.IsKeyDown(KEY_SPACE) then wishMove = wishMove + ang:Up() end
+		if input.IsKeyDown(KEY_LCONTROL) then wishMove = wishMove - ang:Up() end
 		if wishMove:LengthSqr() > 0 then
 			wishMove:Normalize()
 			UtilityMenu.State.FreecamPosition = UtilityMenu.State.FreecamPosition + wishMove * speed
 		end
 		hook.Add("PlayerBindPress", "UtilityMenu_FreecamBlockKeys", function(_, bind)
-			for _, blocked in ipairs(UtilityMenu.Config.FreecamblockedBinds) do
-				if string.find(bind, blocked) then return false end
+			for _, blocked in ipairs(UtilityMenu.Config.FreecamAllowedBinds) do
+				if string.find(bind, blocked) then
+					return false
+				end
 			end
 			return true
 		end)
@@ -150,6 +159,14 @@ function UtilityMenu.SetupHooks()
 		if not input.IsKeyDown(KEY_F) or vgui.GetKeyboardFocus() or gui.IsGameUIVisible() then return end
 		RunConsoleCommand("impulse", "100")
 	end)
+	hook.Add("Think", "UtilityMenu_AttackSpam", function()
+		if not UtilityMenu.Settings.Attackspam or UtilityMenu.State.FreecamEnabled then return end
+		if not input.IsKeyDown(MOUSE_LEFT) or vgui.GetKeyboardFocus() or gui.IsGameUIVisible() then return end
+		RunConsoleCommand("+attack")
+		timer.Simple(0.0025, function()
+			RunConsoleCommand("-attack")
+		end)
+	end)
 	hook.Add("Think", "UtilityMenu_PropKillSpawner", function()
 		if not UtilityMenu.Settings.pkbinds or UtilityMenu.State.FreecamEnabled then
 			hook.Remove("PlayerBindPress", "UtilityMenu_PropKillBlockKeys")
@@ -164,7 +181,7 @@ function UtilityMenu.SetupHooks()
 			UtilityMenu.State.LastPropKeyState[key] = isDown
 		end
 		hook.Add("PlayerBindPress", "UtilityMenu_PropKillBlockKeys", function(_, bind)
-			for _, blocked in ipairs(UtilityMenu.Config.PkblockedBinds) do
+			for _, blocked in ipairs(UtilityMenu.Config.PkAllowedBinds) do
 				if string.find(bind, blocked) then return false end
 			end
 			return true
@@ -192,7 +209,7 @@ function UtilityMenu.SetupHooks()
 			npcline = {cache = UtilityMenu.State.EntityCache.NPCs, color = UtilityMenu.Config.EntityColors.NPC},
 			playerline = {cache = UtilityMenu.State.EntityCache.Players, color = UtilityMenu.Config.EntityColors.Player}
 		}
-		if not ply:Alive() or ply:ShouldDrawLocalPlayer() then
+		if ply:Alive() and not ply:ShouldDrawLocalPlayer() then
 			for setting, data in pairs(lineFunctions) do
 				if not UtilityMenu.Settings[setting] then continue end
 				for _, ent in ipairs(data.cache) do
@@ -235,10 +252,16 @@ function UtilityMenu.SetupHooks()
 				if not IsValid(npc) or not npc:Alive() then continue end
 				local pos = npc:LocalToWorld(Vector(0, 0, npc:OBBMaxs().z)):ToScreen()
 				local maxHealth = npc:GetMaxHealth() or 100
-				local healthRatio = npc:Health() / maxHealth
-				local healthColor = Color(255 - healthRatio * 255, healthRatio * 255, 0)
+				local health = math.max(npc:Health(), 0)
+				local healthColor
+				if maxHealth <= 0 then
+					healthColor = Color(0, 255, 0)
+				else
+					local healthRatio = math.Clamp(health / maxHealth, 0, 1)
+					healthColor = Color(255 - healthRatio * 255, healthRatio * 255, 0)
+				end
 				draw.SimpleText(npc:GetClass(), "BudgetLabel", pos.x, pos.y - 12, UtilityMenu.Config.EntityColors.NPC, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
-				draw.SimpleText("HP:" .. npc:Health(), "BudgetLabel", pos.x, pos.y, healthColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				draw.SimpleText("HP:" .. health, "BudgetLabel", pos.x, pos.y, healthColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 			end
 		end
 		if UtilityMenu.Settings.playerinfo then
@@ -248,8 +271,8 @@ function UtilityMenu.SetupHooks()
 				local maxHealth = player:GetMaxHealth() or 100
 				local healthRatio = player:Health() / maxHealth
 				local healthColor = Color(255 - healthRatio * 255, healthRatio * 255, 0)
-				local statusText = ""
 				local statusColor = UtilityMenu.Config.Colors.White
+				local statusText = ""
 				if player:VoiceVolume() > 0.01 then
 					statusText = "*speaking*"
 					statusColor = UtilityMenu.Config.Colors.Yellow
@@ -338,7 +361,7 @@ function UtilityMenu.SetupHooks()
 			end
 		end
 		if UtilityMenu.Settings.noshake then
-			if not (UtilityMenu.State.FreecamEnabled or ply:ShouldDrawLocalPlayer() or ply:InVehicle()) then
+			if not (UtilityMenu.State.FreecamEnabled or ply:ShouldDrawLocalPlayer() or ply:InVehicle() or not ply:Alive()) then
 				angles.r = 0
 				return {origin = pos, angles = angles, fov = cookie.GetNumber("noshakefov", 120)}
 			end
@@ -433,6 +456,7 @@ function UtilityMenu.CreateMenu()
 	tabPanel:AddSheet("Settings", settingsScroll, "icon16/cog.png")
 	UtilityMenu.CreateLabel("Miscellaneous options:", utilityScroll)
 	UtilityMenu.CreateCheckbox("Toggle auto bhop", "autobhop", utilityScroll)
+	UtilityMenu.CreateCheckbox("Toggle Attack spam", "Attackspam", utilityScroll)
 	UtilityMenu.CreateCheckbox("Toggle flashlight spam", "flashlightspam", utilityScroll)
 	UtilityMenu.CreateCheckbox("Toggle freecam", "freecam", utilityScroll)
 	UtilityMenu.CreateCheckbox("Toggle no recoil", "norecoil", utilityScroll)
