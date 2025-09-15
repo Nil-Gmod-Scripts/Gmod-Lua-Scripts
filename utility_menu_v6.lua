@@ -43,7 +43,7 @@ UtilityMenu.Config = UtilityMenu.Config or {
 UtilityMenu.State = UtilityMenu.State or {
 	ScriptRan = false, FreecamEnabled = false, FreecamPosition = Vector(0, 0, 0), FreecamAngle = Angle(0, 0, 0),
 	FrozenViewAngle = Angle(0, 0, 0), LastCacheUpdate = 0, EntityCache = {Players = {}, NPCs = {}, Props = {}},
-	LastPropKeyState = {}, FreecamReleaseKeysState = false
+	LastPropKeyState = {}, FreecamReleaseKeysState = false, LastAttackTime = 0
 }
 
 function UtilityMenu.Init()
@@ -161,11 +161,18 @@ function UtilityMenu.SetupHooks()
 	end)
 	hook.Add("Think", "UtilityMenu_AttackSpam", function()
 		if not UtilityMenu.Settings.Attackspam or UtilityMenu.State.FreecamEnabled then return end
-		if not input.IsKeyDown(MOUSE_LEFT) or vgui.GetKeyboardFocus() or gui.IsGameUIVisible() then return end
-		RunConsoleCommand("+attack")
-		timer.Simple(0.0025, function()
-			RunConsoleCommand("-attack")
-		end)
+		if not input.IsMouseDown(MOUSE_LEFT) or vgui.GetKeyboardFocus() or gui.IsGameUIVisible() then return end
+		if not UtilityMenu.State.LastAttackTime then
+			UtilityMenu.State.LastAttackTime = 0
+		end
+		local currentTime = CurTime()
+		if currentTime - UtilityMenu.State.LastAttackTime > 0.0334 then
+			RunConsoleCommand("+attack")
+			timer.Simple(0, function()
+				RunConsoleCommand("-attack")
+			end)
+			UtilityMenu.State.LastAttackTime = currentTime
+		end
 	end)
 	hook.Add("Think", "UtilityMenu_PropKillSpawner", function()
 		if not UtilityMenu.Settings.pkbinds or UtilityMenu.State.FreecamEnabled then
