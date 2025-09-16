@@ -58,12 +58,9 @@ function UtilityMenu.UpdateEntityCache()
 end
 
 function UtilityMenu.MinimapProjection(position, yaw, scale, radius)
-	local delta = position - EyePos()
-	local angle = math.rad(-yaw - 90)
-	local x = -(delta.x * math.cos(angle) - delta.y * math.sin(angle))
-	local y = delta.x * math.sin(angle) + delta.y * math.cos(angle)
-	x = x / scale
-	y = y / scale
+	local delta, angle = position - EyePos(), math.rad(-yaw - 90)
+	local x, y = -(delta.x * math.cos(angle) - delta.y * math.sin(angle)), delta.x * math.sin(angle) + delta.y * math.cos(angle)
+	x, y = x / scale, y / scale
 	return math.Clamp(x, -radius, radius), math.Clamp(y, -radius, radius)
 end
 
@@ -111,12 +108,10 @@ function UtilityMenu.SetupHooks()
 		end
 		local baseSpeed = cookie.GetNumber("basespeed", 1)
 		local sensitivity = 0.0175
-		local mouseX = cmd:GetMouseX() * sensitivity
-		local mouseY = cmd:GetMouseY() * sensitivity
+		local mouseX, mouseY = cmd:GetMouseX() * sensitivity, cmd:GetMouseY() * sensitivity
 		local speed = input.IsKeyDown(KEY_LSHIFT) and baseSpeed * 10 or baseSpeed
 		local ang = UtilityMenu.State.FreecamAngle
-		ang.p = math.Clamp(ang.p + mouseY, -89, 89)
-		ang.y = ang.y - mouseX
+		ang.p, ang.y = math.Clamp(ang.p + mouseY, -89, 89), ang.y - mouseX
 		cmd:SetViewAngles(UtilityMenu.State.FrozenViewAngle)
 		local wishMove = Vector()
 		if input.IsKeyDown(KEY_W) then wishMove = wishMove + ang:Forward() end
@@ -203,9 +198,12 @@ function UtilityMenu.SetupHooks()
 	hook.Add("PostDrawTranslucentRenderables", "UtilityMenu_DrawLinesAndBones", function()
 		local ply = LocalPlayer()
 		local startPos = ply:EyePos() + ply:GetAimVector() * 50
-		local lineFunctions = {
+		local lineFunctions, boneFunctions = {
 			npcline = {cache = UtilityMenu.State.EntityCache.NPCs, color = UtilityMenu.Config.EntityColors.NPC},
 			playerline = {cache = UtilityMenu.State.EntityCache.Players, color = UtilityMenu.Config.EntityColors.Player}
+		}, {
+			npcbones = {cache = UtilityMenu.State.EntityCache.NPCs, color = UtilityMenu.Config.EntityColors.NPC},
+			playerbones = {cache = UtilityMenu.State.EntityCache.Players, color = UtilityMenu.Config.EntityColors.Player}
 		}
 		if ply:Alive() and not ply:ShouldDrawLocalPlayer() then
 			for setting, data in pairs(lineFunctions) do
@@ -217,10 +215,6 @@ function UtilityMenu.SetupHooks()
 				end
 			end
 		end
-		local boneFunctions = {
-			npcbones = {cache = UtilityMenu.State.EntityCache.NPCs, color = UtilityMenu.Config.EntityColors.NPC},
-			playerbones = {cache = UtilityMenu.State.EntityCache.Players, color = UtilityMenu.Config.EntityColors.Player}
-		}
 		for setting, data in pairs(boneFunctions) do
 			if not UtilityMenu.Settings[setting] then continue end
 			for _, ent in ipairs(data.cache) do
@@ -235,8 +229,7 @@ function UtilityMenu.SetupHooks()
 		local screenWidth, screenHeight = ScrW(), ScrH()
 		if UtilityMenu.Settings.clientinfo and ply:Alive() then
 			local fps = math.floor(1 / FrameTime())
-			local infoDisplay = cookie.GetNumber("infodisplay", 1)
-			local offset = (infoDisplay == 3) and 75 or 87
+			local infoDisplay, offset = cookie.GetNumber("infodisplay", 1), (infoDisplay == 3) and 75 or 87
 			if infoDisplay == 1 or infoDisplay == 2 then
 				draw.SimpleText("Speed:" .. math.Round(ply:GetVelocity():Length()) .. "u/s", "BudgetLabel", screenWidth / 2, screenHeight / 2 + 75, UtilityMenu.Config.Colors.White, TEXT_ALIGN_CENTER)
 			end
@@ -249,8 +242,7 @@ function UtilityMenu.SetupHooks()
 			for _, npc in ipairs(UtilityMenu.State.EntityCache.NPCs) do
 				if not IsValid(npc) or not npc:Alive() then continue end
 				local pos = npc:LocalToWorld(Vector(0, 0, npc:OBBMaxs().z)):ToScreen()
-				local maxHealth = npc:GetMaxHealth() or 100
-				local health = math.max(npc:Health(), 0)
+				local maxHealth, health = npc:GetMaxHealth() or 100, npc:Health()
 				local healthColor
 				if maxHealth <= 0 then
 					healthColor = Color(0, 255, 0)
@@ -258,8 +250,6 @@ function UtilityMenu.SetupHooks()
 					local healthRatio = math.Clamp(health / maxHealth, 0, 1)
 					healthColor = Color(255 - healthRatio * 255, healthRatio * 255, 0)
 				end
-				--draw.SimpleText(npc:GetClass(), "BudgetLabel", pos.x, pos.y - 12, UtilityMenu.Config.EntityColors.NPC, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
-				--draw.SimpleText("HP:" .. health, "BudgetLabel", pos.x, pos.y, healthColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 				local npcInfoDisplay = cookie.GetNumber("npcinfodisplay", 1)
 				local offset = (npcInfoDisplay >= 2) and 0 or 12
 				if npcInfoDisplay == 1 or npcInfoDisplay == 2 then
@@ -274,11 +264,9 @@ function UtilityMenu.SetupHooks()
 			for _, player in ipairs(UtilityMenu.State.EntityCache.Players) do
 				if not IsValid(player) or not player:Alive() then continue end
 				local pos = player:LocalToWorld(Vector(0, 0, player:OBBMaxs().z)):ToScreen()
-				local maxHealth = player:GetMaxHealth() or 100
-				local healthRatio = player:Health() / maxHealth
-				local healthColor = Color(255 - healthRatio * 255, healthRatio * 255, 0)
-				local statusColor = UtilityMenu.Config.Colors.White
-				local statusText = ""
+				local maxHealth, health = player:GetMaxHealth() or 100, player:Health()
+				local healthRatio = health / maxHealth
+				local healthColor, statusColor, statusText = Color(255 - healthRatio * 255, healthRatio * 255, 0), UtilityMenu.Config.Colors.White, ""
 				if player:VoiceVolume() > 0.01 then
 					statusText = "*speaking*"
 					statusColor = UtilityMenu.Config.Colors.Yellow
@@ -287,16 +275,16 @@ function UtilityMenu.SetupHooks()
 					statusColor = UtilityMenu.Config.Colors.Cyan
 				end
 				local playerInfoDisplay = cookie.GetNumber("playerinfodisplay", 1)
-				local nameTagColor = (playerInfoDisplay == 2 or playerInfoDisplay == 5) and statusColor or UtilityMenu.Config.Colors.White
 				local offset = (playerInfoDisplay >= 4) and 0 or 12
+				local nameTagColor = (playerInfoDisplay == 2 or playerInfoDisplay == 5) and statusColor or UtilityMenu.Config.Colors.White
 				if playerInfoDisplay == 1 or playerInfoDisplay == 4 then
 					draw.SimpleText(statusText, "BudgetLabel", pos.x, pos.y - offset - 12, statusColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 				end
 				if playerInfoDisplay >= 1 and playerInfoDisplay <= 6 then
 					draw.SimpleText(player:Nick(), "BudgetLabel", pos.x, pos.y - offset, nameTagColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 				end
-				if playerInfoDisplay >= 1 and playerInfoDisplay <= 3 or playerInfoDisplay == 7 then
-					local infoText = "HP:" .. player:Health()
+				if (playerInfoDisplay >= 1 and playerInfoDisplay <= 3) or playerInfoDisplay == 7 then
+					local infoText = "HP:" .. health
 					if player:Armor() > 0 then
 						infoText = infoText .. "|AP:" .. player:Armor()
 					end
@@ -305,18 +293,14 @@ function UtilityMenu.SetupHooks()
 			end
 		end
 		if UtilityMenu.Settings.minimap then
-			local sizeIndex = cookie.GetNumber("mapsize", 1)
-			local scaleIndex = cookie.GetNumber("mapscale", 1)
-			local posIndex = cookie.GetNumber("mappos", 1)
-			local size = UtilityMenu.Config.MapSizes[sizeIndex] or 150
-			local scale = UtilityMenu.Config.MapScales[scaleIndex] or 25
+			local sizeIndex, scaleIndex, posIndex = cookie.GetNumber("mapsize", 1), cookie.GetNumber("mapscale", 1), cookie.GetNumber("mappos", 1)
+			local size, scale = UtilityMenu.Config.MapSizes[sizeIndex] or 150, UtilityMenu.Config.MapScales[scaleIndex] or 25
 			local radius = size / 2
 			local corners = {
 				{x = 16 + radius, y = 16 + radius}, {x = screenWidth - 16 - radius, y = 16 + radius},
 				{x = 16 + radius, y = screenHeight - 16 - radius}, {x = screenWidth - 16 - radius, y = screenHeight - 16 - radius}
 			}
-			local centerX, centerY = corners[posIndex].x, corners[posIndex].y
-			local yaw = EyeAngles().y
+			local centerX, centerY, yaw = corners[posIndex].x, corners[posIndex].y, EyeAngles().y
 			surface.SetDrawColor(0, 0, 0, 225)
 			surface.DrawRect(centerX - radius, centerY - radius, radius * 2, radius * 2)
 			for _, npc in ipairs(UtilityMenu.State.EntityCache.NPCs) do
@@ -328,8 +312,7 @@ function UtilityMenu.SetupHooks()
 			for _, player in ipairs(UtilityMenu.State.EntityCache.Players) do
 				if not IsValid(player) or player == ply or not player:Alive() then continue end
 				local x, y = UtilityMenu.MinimapProjection(player:GetPos(), yaw, scale, radius)
-				local markerColorSetting = cookie.GetNumber("playermarkercolor", 1)
-				local markerColor = UtilityMenu.Config.EntityColors.Player
+				local markerColorSetting, markerColor = cookie.GetNumber("playermarkercolor", 1), UtilityMenu.Config.EntityColors.Player
 				if markerColorSetting == 2 then
 					if player:VoiceVolume() > 0.01 then
 						markerColor = UtilityMenu.Config.Colors.Yellow
@@ -445,20 +428,18 @@ end
 
 function UtilityMenu.CreateMenu()
 	local frame = vgui.Create("DFrame")
+	local tab = vgui.Create("DPropertySheet", frame)
 	frame:SetSize(300, 400)
 	frame:Center()
 	frame:SetTitle("Utility Menu V7")
 	frame:SetDeleteOnClose(false)
 	frame:SetVisible(false)
-	local tabPanel = vgui.Create("DPropertySheet", frame)
-	tabPanel:Dock(FILL)
-	tabPanel:SetFadeTime(0)
-	local utilityScroll = vgui.Create("DScrollPanel", tabPanel)
-	local displayScroll = vgui.Create("DScrollPanel", tabPanel)
-	local settingsScroll = vgui.Create("DScrollPanel", tabPanel)
-	tabPanel:AddSheet("Utility", utilityScroll, "icon16/wrench.png")
-	tabPanel:AddSheet("Display", displayScroll, "icon16/monitor.png")
-	tabPanel:AddSheet("Settings", settingsScroll, "icon16/cog.png")
+	tab:Dock(FILL)
+	tab:SetFadeTime(0)
+	local utilityScroll, displayScroll, settingsScroll = vgui.Create("DScrollPanel", tab), vgui.Create("DScrollPanel", tab), vgui.Create("DScrollPanel", tab)
+	tab:AddSheet("Utility", utilityScroll, "icon16/wrench.png")
+	tab:AddSheet("Display", displayScroll, "icon16/monitor.png")
+	tab:AddSheet("Settings", settingsScroll, "icon16/cog.png")
 	UtilityMenu.CreateLabel("Miscellaneous options:", utilityScroll)
 	UtilityMenu.CreateCheckbox("Toggle auto bhop", "autobhop", utilityScroll)
 	UtilityMenu.CreateCheckbox("Toggle Attack spam", "Attackspam", utilityScroll)
@@ -467,9 +448,7 @@ function UtilityMenu.CreateMenu()
 	UtilityMenu.CreateCheckbox("Toggle no recoil", "norecoil", utilityScroll)
 	UtilityMenu.CreateCheckbox("Toggle pk binds", "pkbinds", utilityScroll)
 	UtilityMenu.CreateLabel("Player gestures:", utilityScroll)
-	UtilityMenu.CreateButtonGrid(UtilityMenu.Config.Gestures, function(gesture)
-		RunConsoleCommand("act", gesture)
-	end, utilityScroll)
+	UtilityMenu.CreateButtonGrid(UtilityMenu.Config.Gestures, function(gesture) RunConsoleCommand("act", gesture) end, utilityScroll)
 	UtilityMenu.CreateLabel("Miscellaneous options:", displayScroll)
 	UtilityMenu.CreateCheckbox("Draw client info", "clientinfo", displayScroll)
 	UtilityMenu.CreateCheckbox("Draw prop boxes", "propbox", displayScroll)
