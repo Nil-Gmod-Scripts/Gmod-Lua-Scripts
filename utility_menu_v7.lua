@@ -267,7 +267,7 @@ function UtilityMenu.SetupHooks()
 				local maxHealth, health = player:GetMaxHealth() or 100, player:Health()
 				local healthRatio = health / maxHealth
 				local healthColor, statusColor, statusText = Color(255 - healthRatio * 255, healthRatio * 255, 0), UtilityMenu.Config.Colors.White, ""
-				if player:VoiceVolume() > 0.01 then
+				if player:VoiceVolume() > 0.015 then
 					statusText = "*speaking*"
 					statusColor = UtilityMenu.Config.Colors.Yellow
 				elseif player:IsTyping() then
