@@ -231,7 +231,10 @@ function UtilityMenu.SetupHooks()
 			local fps = math.floor(1 / FrameTime())
 			local infoDisplay, offset = cookie.GetNumber("infodisplay", 1), (infoDisplay == 3) and 75 or 87
 			if infoDisplay == 1 or infoDisplay == 2 then
-				draw.SimpleText("Speed:" .. math.Round(ply:GetVelocity():Length()) .. "u/s", "BudgetLabel", screenWidth / 2, screenHeight / 2 + 75, UtilityMenu.Config.Colors.White, TEXT_ALIGN_CENTER)
+				draw.SimpleText(
+					"Speed:" .. math.Round(ply:GetVelocity():Length()) .. "u/s", "BudgetLabel", screenWidth / 2,
+					screenHeight / 2 + 75, UtilityMenu.Config.Colors.White, TEXT_ALIGN_CENTER
+				)
 			end
 			if infoDisplay == 1 or infoDisplay == 3 then
 				local fpsColor = Color(255 - math.min(fps / 60, 1) * 255, math.min(fps / 60, 1) * 255, 0)
@@ -267,23 +270,27 @@ function UtilityMenu.SetupHooks()
 				local maxHealth, health = player:GetMaxHealth() or 100, player:Health()
 				local healthRatio = health / maxHealth
 				local healthColor, statusColor, statusText = Color(255 - healthRatio * 255, healthRatio * 255, 0), UtilityMenu.Config.Colors.White, ""
+				local playerInfoDisplay = cookie.GetNumber("playerinfodisplay", 1)
 				if player:VoiceVolume() > 0.01 then
 					statusText = "*speaking*"
 					statusColor = UtilityMenu.Config.Colors.Yellow
 				elseif player:IsTyping() then
 					statusText = "*typing*"
 					statusColor = UtilityMenu.Config.Colors.Cyan
+				elseif (playerInfoDisplay == 5 or playerInfoDisplay == 11) then
+					statusColor = team.GetColor(player:Team())
 				end
-				local playerInfoDisplay = cookie.GetNumber("playerinfodisplay", 1)
-				local offset = (playerInfoDisplay >= 4) and 0 or 12
-				local nameTagColor = (playerInfoDisplay == 2 or playerInfoDisplay == 5) and statusColor or UtilityMenu.Config.Colors.White
-				if playerInfoDisplay == 1 or playerInfoDisplay == 4 then
+				local offset = (playerInfoDisplay >= 7) and 0 or 12
+				local nameTagColor = (playerInfoDisplay == 2 or playerInfoDisplay == 5 or playerInfoDisplay == 8 or playerInfoDisplay == 11) and statusColor
+				      or ((playerInfoDisplay >= 4 and playerInfoDisplay <= 6) or (playerInfoDisplay >= 10 and playerInfoDisplay <= 12)) and team.GetColor(player:Team())
+					  or UtilityMenu.Config.Colors.White
+				if (playerInfoDisplay == 1 or playerInfoDisplay == 4 or playerInfoDisplay == 7 or playerInfoDisplay == 10) then
 					draw.SimpleText(statusText, "BudgetLabel", pos.x, pos.y - offset - 12, statusColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 				end
-				if playerInfoDisplay >= 1 and playerInfoDisplay <= 6 then
+				if playerInfoDisplay != 13 then
 					draw.SimpleText(player:Nick(), "BudgetLabel", pos.x, pos.y - offset, nameTagColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 				end
-				if (playerInfoDisplay >= 1 and playerInfoDisplay <= 3) or playerInfoDisplay == 7 then
+				if (playerInfoDisplay >= 1 and playerInfoDisplay <= 6) or playerInfoDisplay == 13 then
 					local infoText = "HP:" .. health
 					if player:Armor() > 0 then
 						infoText = infoText .. "|AP:" .. player:Armor()
@@ -478,7 +485,7 @@ function UtilityMenu.CreateMenu()
 	UtilityMenu.CreateLabel("NPC info settings:", settingsScroll)
 	UtilityMenu.CreateSlider("Info:", 1, 3, "npcinfodisplay", settingsScroll)
 	UtilityMenu.CreateLabel("Player info settings:", settingsScroll)
-	UtilityMenu.CreateSlider("Info:", 1, 7, "playerinfodisplay", settingsScroll)
+	UtilityMenu.CreateSlider("Info:", 1, 13, "playerinfodisplay", settingsScroll)
 	return frame
 end
 
