@@ -271,7 +271,7 @@ function UtilityMenu.SetupHooks()
 				local healthRatio = health / maxHealth
 				local healthColor, statusColor, statusText = Color(255 - healthRatio * 255, healthRatio * 255, 0), UtilityMenu.Config.Colors.White, ""
 				local playerInfoDisplay = cookie.GetNumber("playerinfodisplay", 1)
-				if player:VoiceVolume() > 0.01 then
+				if player:VoiceVolume() > 0.02 then
 					statusText = "*speaking*"
 					statusColor = UtilityMenu.Config.Colors.Yellow
 				elseif player:IsTyping() then
@@ -321,7 +321,7 @@ function UtilityMenu.SetupHooks()
 				local x, y = UtilityMenu.MinimapProjection(player:GetPos(), yaw, scale, radius)
 				local markerColorSetting, markerColor = cookie.GetNumber("playermarkercolor", 1), UtilityMenu.Config.EntityColors.Player
 				if markerColorSetting == 2 then
-					if player:VoiceVolume() > 0.01 then
+					if player:VoiceVolume() > 0.02 then
 						markerColor = UtilityMenu.Config.Colors.Yellow
 					elseif player:IsTyping() then
 						markerColor = UtilityMenu.Config.Colors.Cyan
