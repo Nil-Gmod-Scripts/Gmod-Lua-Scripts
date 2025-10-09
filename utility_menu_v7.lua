@@ -84,7 +84,7 @@ end
 
 function UtilityMenu.SetupHooks()
 	hook.Add("HUDPaint", "UtilityMenu_EyeAngleUpdater", function()
-		local _ = EyeAngles()
+		local _ = EyeAngles(), EyePos()
 	end)
 	hook.Add("Think", "UtilityMenu_UpdateCache", function()
 		if CurTime() - UtilityMenu.State.LastCacheUpdate > 0.1 then
