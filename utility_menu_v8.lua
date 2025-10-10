@@ -476,9 +476,6 @@ function UtilityMenu.CreateMenu()
 end
 
 concommand.Add("open_utility_menu", function()
-	if not UtilityMenu.Menu or not IsValid(UtilityMenu.Menu) then
-		UtilityMenu.Menu = UtilityMenu.CreateMenu()
-	end
 	UtilityMenu.Menu:SetVisible(true)
 	UtilityMenu.Menu:MakePopup()
 end)
@@ -499,6 +496,12 @@ concommand.Add("toggle_freecam", function()
 			return {origin = UtilityMenu.Config.State.FreecamPosition, angles = UtilityMenu.Config.State.FreecamAngle, fov = fov, drawviewer = true}
 		end)
 	end
+end)
+
+hook.Add("InitPostEntity", "UtilityMenu_AutoCreate", function()
+    if not UtilityMenu.Menu or not IsValid(UtilityMenu.Menu) then
+        UtilityMenu.Menu = UtilityMenu.CreateMenu()
+    end
 end)
 
 if not UtilityMenu.Config.State.ScriptRan then
