@@ -1,3 +1,5 @@
+if UtilityMenu then return end
+
 UtilityMenu = {}
 UtilityMenu.Settings = {}
 
