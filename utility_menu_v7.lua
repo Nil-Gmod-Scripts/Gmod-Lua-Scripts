@@ -49,7 +49,7 @@ function UtilityMenu.UpdateEntityCache()
 		if not IsValid(ent) then continue end
 		if ent:GetClass():lower():find("prop_") then
 			table.insert(UtilityMenu.State.EntityCache.Props, ent)
-		elseif ent:IsNPC() then
+		elseif ent:IsNPC() or ent:IsNextBot() then
 			table.insert(UtilityMenu.State.EntityCache.NPCs, ent)
 		elseif ent:IsPlayer() and ent ~= LocalPlayer() then
 			table.insert(UtilityMenu.State.EntityCache.Players, ent)
@@ -190,7 +190,7 @@ function UtilityMenu.SetupHooks()
 			if not UtilityMenu.Settings[setting] then continue end
 			for _, ent in ipairs(data.cache) do
 				if not IsValid(ent) then continue end
-				if data.checkAlive and not ent:Alive() then continue end
+				if data.checkAlive and not ent:Alive() or ent:Health() <= 0 then continue end
 				render.DrawWireframeBox(ent:GetPos(), data.useAngle and ent:GetAngles() or Angle(0, 0, 0), ent:OBBMins(), ent:OBBMaxs(), data.color, false)
 			end
 		end
@@ -209,7 +209,7 @@ function UtilityMenu.SetupHooks()
 			for setting, data in pairs(lineFunctions) do
 				if not UtilityMenu.Settings[setting] then continue end
 				for _, ent in ipairs(data.cache) do
-					if not IsValid(ent) or not ent:Alive() then continue end
+					if not IsValid(ent) or not ent:Alive() or ent:Health() <= 0 then continue end
 					local endPos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
 					render.DrawLine(startPos, endPos, data.color, false)
 				end
@@ -218,7 +218,7 @@ function UtilityMenu.SetupHooks()
 		for setting, data in pairs(boneFunctions) do
 			if not UtilityMenu.Settings[setting] then continue end
 			for _, ent in ipairs(data.cache) do
-				if not IsValid(ent) or not ent:Alive() then continue end
+				if not IsValid(ent) or not ent:Alive() or ent:Health() <= 0 then continue end
 				if setting == "playerbones" and ent == LocalPlayer() then continue end
 				UtilityMenu.DrawBones(ent, data.color)
 			end
@@ -243,7 +243,7 @@ function UtilityMenu.SetupHooks()
 		end
 		if UtilityMenu.Settings.npcinfo then
 			for _, npc in ipairs(UtilityMenu.State.EntityCache.NPCs) do
-				if not IsValid(npc) or not npc:Alive() then continue end
+				if not IsValid(npc) or not npc:Alive() or npc:Health() <= 0 then continue end
 				local pos = npc:LocalToWorld(Vector(0, 0, npc:OBBMaxs().z)):ToScreen()
 				local maxHealth, health = npc:GetMaxHealth() or 100, npc:Health()
 				local healthColor
@@ -308,28 +308,46 @@ function UtilityMenu.SetupHooks()
 				{x = 16 + radius, y = screenHeight - 16 - radius}, {x = screenWidth - 16 - radius, y = screenHeight - 16 - radius}
 			}
 			local centerX, centerY, yaw = corners[posIndex].x, corners[posIndex].y, EyeAngles().y
+			local ply = LocalPlayer()
 			surface.SetDrawColor(0, 0, 0, 225)
 			surface.DrawRect(centerX - radius, centerY - radius, radius * 2, radius * 2)
+			local function DrawHeightMarker(ent, color, label)
+				if not IsValid(ent) or not ent:Alive() or ent:Health() <= 0 then return end
+				local x, y = UtilityMenu.MinimapProjection(ent:GetPos(), yaw, scale, radius)
+				local baseX, baseY = centerX + x, centerY + y
+				local heightDiff = ent:GetPos().z - ply:GetPos().z
+				local heightOffset = heightDiff / (2 * scale)
+				local markerY = baseY - heightOffset
+				if math.abs(heightOffset) > 1 then
+					surface.SetDrawColor(color.r, color.g, color.b)
+					surface.DrawLine(baseX, baseY, baseX, markerY)
+				end
+				surface.SetDrawColor(color)
+				surface.DrawRect(baseX - 1, markerY - 1, 4, 4)
+				if label then
+					draw.SimpleText(label, "BudgetLabel", baseX, markerY - 4, color, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				end
+			end
 			for _, npc in ipairs(UtilityMenu.State.EntityCache.NPCs) do
-				if not IsValid(npc) or not npc:Alive() then continue end
-				local x, y = UtilityMenu.MinimapProjection(npc:GetPos(), yaw, scale, radius)
-				surface.SetDrawColor(UtilityMenu.Config.Colors.Red)
-				surface.DrawRect(centerX + x - 2, centerY + y - 2, 4, 4)
+				DrawHeightMarker(npc, UtilityMenu.Config.Colors.Red)
 			end
 			for _, player in ipairs(UtilityMenu.State.EntityCache.Players) do
 				if not IsValid(player) or player == ply or not player:Alive() then continue end
-				local x, y = UtilityMenu.MinimapProjection(player:GetPos(), yaw, scale, radius)
-				local markerColorSetting, markerColor = cookie.GetNumber("playermarkercolor", 1), UtilityMenu.Config.EntityColors.Player
-				if markerColorSetting == 2 then
+				local markerColorSetting = cookie.GetNumber("playermarkercolor", 1)
+				local markerColor
+				if markerColorSetting == 3 or markerColorSetting == 4 then
+					markerColor = team.GetColor(player:Team())
+				else
+					markerColor = UtilityMenu.Config.EntityColors.Player
+				end
+				if markerColorSetting == 1 or markerColorSetting == 3 then
 					if player:VoiceVolume() > 0.02 then
 						markerColor = UtilityMenu.Config.Colors.Yellow
 					elseif player:IsTyping() then
 						markerColor = UtilityMenu.Config.Colors.Cyan
 					end
 				end
-				surface.SetDrawColor(markerColor)
-				surface.DrawRect(centerX + x - 2, centerY + y - 2, 4, 4)
-				draw.SimpleText(player:Nick(), "BudgetLabel", centerX + x, centerY + y, markerColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				DrawHeightMarker(player, markerColor, player:Nick())
 			end
 			surface.SetDrawColor(UtilityMenu.Config.Colors.Green)
 			surface.DrawLine(centerX, centerY - 4, centerX - 4, centerY + 4)
@@ -479,7 +497,7 @@ function UtilityMenu.CreateMenu()
 	UtilityMenu.CreateSlider("Pos:", 1, 4, "mappos", settingsScroll)
 	UtilityMenu.CreateSlider("Scale:", 1, 5, "mapscale", settingsScroll)
 	UtilityMenu.CreateSlider("Size:", 1, 5, "mapsize", settingsScroll)
-	UtilityMenu.CreateSlider("Player status:", 1, 2, "playermarkercolor", settingsScroll)
+	UtilityMenu.CreateSlider("Player status:", 1, 4, "playermarkercolor", settingsScroll)
 	UtilityMenu.CreateLabel("No shake:", settingsScroll)
 	UtilityMenu.CreateSlider("FOV", 75, 120, "noshakefov", settingsScroll)
 	UtilityMenu.CreateLabel("NPC info settings:", settingsScroll)
@@ -492,9 +510,6 @@ end
 CleanupPreviousHooks()
 
 concommand.Add("open_utility_menu", function()
-	if not UtilityMenu.Menu or not IsValid(UtilityMenu.Menu) then
-		UtilityMenu.Menu = UtilityMenu.CreateMenu()
-	end
 	UtilityMenu.Menu:SetVisible(true)
 	UtilityMenu.Menu:MakePopup()
 end)
@@ -515,6 +530,12 @@ concommand.Add("toggle_freecam", function()
 			return {origin = UtilityMenu.State.FreecamPosition, angles = UtilityMenu.State.FreecamAngle, fov = fov, drawviewer = true}
 		end)
 	end
+end)
+
+hook.Add("InitPostEntity", "UtilityMenu_AutoCreate", function()
+    if not UtilityMenu.Menu or not IsValid(UtilityMenu.Menu) then
+        UtilityMenu.Menu = UtilityMenu.CreateMenu()
+    end
 end)
 
 function UtilityMenu.Init()
