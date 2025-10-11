@@ -182,16 +182,16 @@ function UtilityMenu.SetupHooks()
 	end)
 	hook.Add("PostDrawOpaqueRenderables", "UtilityMenu_DrawEntityBoxes", function()
 		local drawFunctions = {
-			propbox = {cache = UtilityMenu.State.EntityCache.Props, color = UtilityMenu.Config.EntityColors.Prop, useAngle = true},
-			npcbox = {cache = UtilityMenu.State.EntityCache.NPCs, color = UtilityMenu.Config.EntityColors.NPC, checkAlive = true},
-			playerbox = {cache = UtilityMenu.State.EntityCache.Players, color = UtilityMenu.Config.EntityColors.Player, checkAlive = true}
+			propbox = {cache = UtilityMenu.State.EntityCache.Props, color = UtilityMenu.Config.EntityColors.Prop, UseAngle = true},
+			npcbox = {cache = UtilityMenu.State.EntityCache.NPCs, color = UtilityMenu.Config.EntityColors.NPC, CheckAlive = true},
+			playerbox = {cache = UtilityMenu.State.EntityCache.Players, color = UtilityMenu.Config.EntityColors.Player, CheckAlive = true}
 		}
 		for setting, data in pairs(drawFunctions) do
 			if not UtilityMenu.Settings[setting] then continue end
 			for _, ent in ipairs(data.cache) do
 				if not IsValid(ent) then continue end
-				if data.checkAlive and not ent:Alive() or ent:Health() <= 0 then continue end
-				render.DrawWireframeBox(ent:GetPos(), data.useAngle and ent:GetAngles() or Angle(0, 0, 0), ent:OBBMins(), ent:OBBMaxs(), data.color, false)
+				if data.CheckAlive and (not ent:Alive() or ent:Health() <= 0) then continue end
+				render.DrawWireframeBox(ent:GetPos(), data.UseAngle and ent:GetAngles() or Angle(0, 0, 0), ent:OBBMins(), ent:OBBMaxs(), data.color, false)
 			end
 		end
 	end)
@@ -209,7 +209,7 @@ function UtilityMenu.SetupHooks()
 			for setting, data in pairs(lineFunctions) do
 				if not UtilityMenu.Settings[setting] then continue end
 				for _, ent in ipairs(data.cache) do
-					if not IsValid(ent) or not ent:Alive() or ent:Health() <= 0 then continue end
+					if not IsValid(ent) or (not ent:Alive() or ent:Health() <= 0) then continue end
 					local endPos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
 					render.DrawLine(startPos, endPos, data.color, false)
 				end
@@ -218,7 +218,7 @@ function UtilityMenu.SetupHooks()
 		for setting, data in pairs(boneFunctions) do
 			if not UtilityMenu.Settings[setting] then continue end
 			for _, ent in ipairs(data.cache) do
-				if not IsValid(ent) or not ent:Alive() or ent:Health() <= 0 then continue end
+				if not IsValid(ent) or (not ent:Alive() or ent:Health() <= 0) then continue end
 				if setting == "playerbones" and ent == LocalPlayer() then continue end
 				UtilityMenu.DrawBones(ent, data.color)
 			end
@@ -243,7 +243,7 @@ function UtilityMenu.SetupHooks()
 		end
 		if UtilityMenu.Settings.npcinfo then
 			for _, npc in ipairs(UtilityMenu.State.EntityCache.NPCs) do
-				if not IsValid(npc) or not npc:Alive() or npc:Health() <= 0 then continue end
+				if not IsValid(npc) or (not npc:Alive() or npc:Health() <= 0) then continue end
 				local pos = npc:LocalToWorld(Vector(0, 0, npc:OBBMaxs().z)):ToScreen()
 				local maxHealth, health = npc:GetMaxHealth() or 100, npc:Health()
 				local healthColor
@@ -312,7 +312,7 @@ function UtilityMenu.SetupHooks()
 			surface.SetDrawColor(0, 0, 0, 225)
 			surface.DrawRect(centerX - radius, centerY - radius, radius * 2, radius * 2)
 			local function DrawHeightMarker(ent, color, label)
-				if not IsValid(ent) or not ent:Alive() or ent:Health() <= 0 then return end
+				if not IsValid(ent) or (not ent:Alive() or ent:Health() <= 0) then return end
 				local x, y = UtilityMenu.MinimapProjection(ent:GetPos(), yaw, scale, radius)
 				local baseX, baseY = centerX + x, centerY + y
 				local heightDiff = ent:GetPos().z - EyePos().z
