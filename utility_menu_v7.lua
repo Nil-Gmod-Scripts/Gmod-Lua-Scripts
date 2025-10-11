@@ -315,7 +315,7 @@ function UtilityMenu.SetupHooks()
 				if not IsValid(ent) or not ent:Alive() or ent:Health() <= 0 then return end
 				local x, y = UtilityMenu.MinimapProjection(ent:GetPos(), yaw, scale, radius)
 				local baseX, baseY = centerX + x, centerY + y
-				local heightDiff = ent:GetPos().z - ply:GetPos().z
+				local heightDiff = ent:GetPos().z - EyePos().z
 				local heightOffset = heightDiff / (2 * scale)
 				local markerY = baseY - heightOffset
 				if math.abs(heightOffset) > 1 then
