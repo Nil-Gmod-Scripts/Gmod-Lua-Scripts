@@ -340,6 +340,7 @@ function UtilityMenu.SetupHooks()
 			local size, scale = UtilityMenu.Config.MapSizes[sizeIndex] or 150, UtilityMenu.Config.MapScales[scaleIndex] or 25
 			local markerstatusstyle = cookie.GetNumber("markerstatusstyle", 1)
 			local showmarkerstatus = cookie.GetNumber("showmarkerstatus", 1)
+			local showheightoffset = cookie.GetNumber("showheightoffset", 1)
 			local markerstatusText, markerstatusColor = ""
 			local radius = size / 2
 			local corners = {
@@ -355,7 +356,12 @@ function UtilityMenu.SetupHooks()
 				local x, y = UtilityMenu.MinimapProjection(ent:GetPos(), yaw, scale, radius)
 				local baseX, baseY = centerX + x, centerY + y
 				local heightDiff = ent:GetPos().z - EyePos().z
-				local heightOffset = heightDiff / (1.5 * scale)
+				local heightOffset
+				if showheightoffset == 1 then
+					heightOffset = heightDiff / (1.5 * scale)
+				else
+					heightOffset = 0
+				end
 				local markerY = baseY - heightOffset
 				if math.abs(heightOffset) > 1 then
 					surface.SetDrawColor(color.r, color.g, color.b)
@@ -562,6 +568,7 @@ function UtilityMenu.CreateMenu()
 	UtilityMenu.CreateSlider("Pos:", 1, 4, "mappos", settingsScroll)
 	UtilityMenu.CreateSlider("Scale:", 1, 5, "mapscale", settingsScroll)
 	UtilityMenu.CreateSlider("Size:", 1, 5, "mapsize", settingsScroll)
+	UtilityMenu.CreateSlider("show height offset:", 1, 2, "showheightoffset", settingsScroll)
 	UtilityMenu.CreateSlider("Show prop markers:", 1, 2, "markershow1", settingsScroll)
 	UtilityMenu.CreateSlider("Show npc markers:", 1, 2, "markershow2", settingsScroll)
 	UtilityMenu.CreateSlider("show player markers:", 1, 2, "markershow3", settingsScroll)
