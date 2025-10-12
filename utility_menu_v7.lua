@@ -47,7 +47,7 @@ function UtilityMenu.UpdateEntityCache()
 	end
 	for _, ent in ipairs(ents.GetAll()) do
 		if not IsValid(ent) then continue end
-		if ent:GetClass():lower():find("prop_") then
+		if ent:GetClass():find("prop_") then
 			table.insert(UtilityMenu.State.EntityCache.Props, ent)
 		elseif ent:IsNPC() or ent:IsNextBot() then
 			table.insert(UtilityMenu.State.EntityCache.NPCs, ent)
@@ -253,14 +253,15 @@ function UtilityMenu.SetupHooks()
 		local screenWidth, screenHeight = ScrW(), ScrH()
 		if UtilityMenu.Settings.clientinfo and ply:Alive() then
 			local fps = math.floor(1 / FrameTime())
-			local infoDisplay, offset = cookie.GetNumber("infodisplay", 1), (infoDisplay == 3) and 75 or 87
-			if infoDisplay == 1 or infoDisplay == 2 then
+			local infoDisplay1, infoDisplay2 = cookie.GetNumber("infodisplay1", 1), cookie.GetNumber("infodisplay2", 1)
+			local offset = infoDisplay1 == 1 and 87 or 75
+			if infoDisplay1 == 1 then
 				draw.SimpleText(
 					"Speed:" .. math.Round(ply:GetVelocity():Length()) .. "u/s", "BudgetLabel", screenWidth / 2,
 					screenHeight / 2 + 75, UtilityMenu.Config.Colors.White, TEXT_ALIGN_CENTER
 				)
 			end
-			if infoDisplay == 1 or infoDisplay == 3 then
+			if infoDisplay2 == 1 then
 				local fpsColor = Color(255 - math.min(fps / 60, 1) * 255, math.min(fps / 60, 1) * 255, 0)
 				draw.SimpleText("FPS:" .. fps, "BudgetLabel", screenWidth / 2, screenHeight / 2 + offset, fpsColor, TEXT_ALIGN_CENTER)
 			end
@@ -277,12 +278,13 @@ function UtilityMenu.SetupHooks()
 					local healthRatio = math.Clamp(health / maxHealth, 0, 1)
 					healthColor = Color(255 - healthRatio * 255, healthRatio * 255, 0)
 				end
-				local npcInfoDisplay = cookie.GetNumber("npcinfodisplay", 1)
-				local offset = (npcInfoDisplay >= 2) and 0 or 12
-				if npcInfoDisplay == 1 or npcInfoDisplay == 2 then
+				local npcInfoDisplay1 = cookie.GetNumber("npcinfodisplay1", 1)
+				local npcInfoDisplay2 = cookie.GetNumber("npcinfodisplay2", 1)
+				local offset = npcInfoDisplay2 == 1 and 12 or 0
+				if npcInfoDisplay1 == 1 then
 					draw.SimpleText(npc:GetClass(), "BudgetLabel", pos.x, pos.y - offset, UtilityMenu.Config.EntityColors.NPC, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 				end
-				if npcInfoDisplay == 1 or npcInfoDisplay == 3 then
+				if npcInfoDisplay2 == 1 then
 					draw.SimpleText("HP:" .. health, "BudgetLabel", pos.x, pos.y, healthColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 				end
 			end
@@ -293,28 +295,37 @@ function UtilityMenu.SetupHooks()
 				local pos = player:LocalToWorld(Vector(0, 0, player:OBBMaxs().z)):ToScreen()
 				local maxHealth, health = player:GetMaxHealth() or 100, player:Health()
 				local healthRatio = health / maxHealth
-				local healthColor, statusColor, statusText = Color(255 - healthRatio * 255, healthRatio * 255, 0), UtilityMenu.Config.Colors.White, ""
-				local playerInfoDisplay = cookie.GetNumber("playerinfodisplay", 1)
+				local healthColor = Color(255 - healthRatio * 255, healthRatio * 255, 0)
+				local statusText = ""
+				local statusColor
+				local playerinfodisplay1, playerinfodisplay2, playerinfodisplay3, playerinfodisplay4, playerinfodisplay5 = cookie.GetNumber("playerinfodisplay1", 1),
+					cookie.GetNumber("playerinfodisplay2", 1), cookie.GetNumber("playerinfodisplay3", 1), cookie.GetNumber("playerinfodisplay4", 1), cookie.GetNumber("playerinfodisplay5", 1)
 				if player:VoiceVolume() > 0.02 then
 					statusText = "*speaking*"
 					statusColor = UtilityMenu.Config.Colors.Yellow
 				elseif player:IsTyping() then
 					statusText = "*typing*"
 					statusColor = UtilityMenu.Config.Colors.Cyan
-				elseif (playerInfoDisplay == 5 or playerInfoDisplay == 11) then
+				elseif playerinfodisplay2 == 1 then
 					statusColor = team.GetColor(player:Team())
 				end
-				local offset = (playerInfoDisplay >= 7) and 0 or 12
-				local nameTagColor = (playerInfoDisplay == 2 or playerInfoDisplay == 5 or playerInfoDisplay == 8 or playerInfoDisplay == 11) and statusColor
-				      or ((playerInfoDisplay >= 4 and playerInfoDisplay <= 6) or (playerInfoDisplay >= 10 and playerInfoDisplay <= 12)) and team.GetColor(player:Team())
-					  or UtilityMenu.Config.Colors.White
-				if (playerInfoDisplay == 1 or playerInfoDisplay == 4 or playerInfoDisplay == 7 or playerInfoDisplay == 10) then
-					draw.SimpleText(statusText, "BudgetLabel", pos.x, pos.y - offset - 12, statusColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				local offset1 = playerinfodisplay5 == 1 and 12 or 0
+				local offset2 = playerinfodisplay4 == 2 and 0 or 12
+				local nameTagColor
+				if playerinfodisplay1 == 2 and playerinfodisplay3 == 1 then
+					nameTagColor = statusColor
+				elseif playerinfodisplay2 == 1 then
+					nameTagColor = team.GetColor(player:Team())
+				else
+					nameTagColor = UtilityMenu.Config.Colors.White
 				end
-				if playerInfoDisplay != 13 then
-					draw.SimpleText(player:Nick(), "BudgetLabel", pos.x, pos.y - offset, nameTagColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				if playerinfodisplay3 == 1 and playerinfodisplay1 == 1 then
+					draw.SimpleText(statusText, "BudgetLabel", pos.x, pos.y - offset2 - 12, statusColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 				end
-				if (playerInfoDisplay >= 1 and playerInfoDisplay <= 6) or playerInfoDisplay == 13 then
+				if playerinfodisplay4 == 1 then
+					draw.SimpleText(player:Nick(), "BudgetLabel", pos.x, pos.y - offset1, nameTagColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				end
+				if playerinfodisplay5 == 1 then
 					local infoText = "HP:" .. health
 					if player:Armor() > 0 then
 						infoText = infoText .. "|AP:" .. player:Armor()
@@ -325,6 +336,7 @@ function UtilityMenu.SetupHooks()
 		end
 		if UtilityMenu.Settings.minimap then
 			local sizeIndex, scaleIndex, posIndex = cookie.GetNumber("mapsize", 1), cookie.GetNumber("mapscale", 1), cookie.GetNumber("mappos", 1)
+			local markershow1, markershow2, markershow3 = cookie.GetNumber("markershow1", 1), cookie.GetNumber("markershow2", 1), cookie.GetNumber("markershow3", 1)
 			local size, scale = UtilityMenu.Config.MapSizes[sizeIndex] or 150, UtilityMenu.Config.MapScales[scaleIndex] or 25
 			local radius = size / 2
 			local corners = {
@@ -336,7 +348,7 @@ function UtilityMenu.SetupHooks()
 			surface.SetDrawColor(0, 0, 0, 225)
 			surface.DrawRect(centerX - radius, centerY - radius, radius * 2, radius * 2)
 			local function DrawHeightMarker(ent, color, label)
-				if not IsValid(ent) or (not ent:Alive() or ent:Health() <= 0) then return end
+				if not IsValid(ent) or ((not ent:Alive() or ent:Health() <= 0) and not ent:GetClass():find("prop_")) then return end
 				local x, y = UtilityMenu.MinimapProjection(ent:GetPos(), yaw, scale, radius)
 				local baseX, baseY = centerX + x, centerY + y
 				local heightDiff = ent:GetPos().z - EyePos().z
@@ -352,26 +364,36 @@ function UtilityMenu.SetupHooks()
 					draw.SimpleText(label, "BudgetLabel", baseX, markerY - 4, color, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 				end
 			end
+			for _, prop in ipairs(UtilityMenu.State.EntityCache.Props) do
+				if markershow1 == 1 then
+					DrawHeightMarker(prop, UtilityMenu.Config.EntityColors.Prop)
+				end
+			end
 			for _, npc in ipairs(UtilityMenu.State.EntityCache.NPCs) do
-				DrawHeightMarker(npc, UtilityMenu.Config.Colors.Red)
+				if markershow2 == 1 then
+					DrawHeightMarker(npc, UtilityMenu.Config.Colors.Red)
+				end
 			end
 			for _, player in ipairs(UtilityMenu.State.EntityCache.Players) do
-				if not IsValid(player) or player == ply or not player:Alive() then continue end
-				local markerColorSetting = cookie.GetNumber("playermarkercolor", 1)
-				local markerColor
-				if markerColorSetting == 3 or markerColorSetting == 4 then
-					markerColor = team.GetColor(player:Team())
-				else
-					markerColor = UtilityMenu.Config.EntityColors.Player
-				end
-				if markerColorSetting == 1 or markerColorSetting == 3 then
-					if player:VoiceVolume() > 0.02 then
-						markerColor = UtilityMenu.Config.Colors.Yellow
-					elseif player:IsTyping() then
-						markerColor = UtilityMenu.Config.Colors.Cyan
+				if markershow3 == 1 then
+					if not IsValid(player) or player == ply or not player:Alive() then continue end
+					local playermarkercolor1 = cookie.GetNumber("playermarkercolor1", 1)
+					local playermarkercolor2 = cookie.GetNumber("playermarkercolor2", 1)
+					local markerColor
+					if playermarkercolor1 == 1 then
+						markerColor = team.GetColor(player:Team())
+					else
+						markerColor = UtilityMenu.Config.EntityColors.Player
 					end
+					if playermarkercolor2 == 1 then
+						if player:VoiceVolume() > 0.02 then
+							markerColor = UtilityMenu.Config.Colors.Yellow
+						elseif player:IsTyping() then
+							markerColor = UtilityMenu.Config.Colors.Cyan
+						end
+					end
+					DrawHeightMarker(player, markerColor, player:Nick())
 				end
-				DrawHeightMarker(player, markerColor, player:Nick())
 			end
 			surface.SetDrawColor(UtilityMenu.Config.Colors.Green)
 			surface.DrawLine(centerX, centerY - 4, centerX - 4, centerY + 4)
@@ -460,7 +482,7 @@ function UtilityMenu.CreateSlider(label, min, max, key, parent)
 	slider.Label:SetFont("DermaDefault")
 	slider.Label:SetTextColor(UtilityMenu.Config.Colors.White)
 	slider:Dock(TOP)
-	slider:DockMargin(10, 5, 0, 0)
+	slider:DockMargin(10, 5, -15, 0)
 	slider:SetTall(15)
 	slider:SetMin(min)
 	slider:SetMax(max)
@@ -478,7 +500,7 @@ end
 function UtilityMenu.CreateMenu()
 	local frame = vgui.Create("DFrame")
 	local tab = vgui.Create("DPropertySheet", frame)
-	frame:SetSize(300, 410)
+	frame:SetSize(300, 375)
 	frame:Center()
 	frame:SetTitle("Utility Menu V7")
 	frame:SetDeleteOnClose(false)
@@ -518,18 +540,28 @@ function UtilityMenu.CreateMenu()
 	UtilityMenu.CreateLabel("Freecam settings:", settingsScroll)
 	UtilityMenu.CreateSlider("Speed:", 1, 50, "basespeed", settingsScroll)
 	UtilityMenu.CreateLabel("Client info settings:", settingsScroll)
-	UtilityMenu.CreateSlider("Info:", 1, 3, "infodisplay", settingsScroll)
+	UtilityMenu.CreateSlider("Show speed:", 1, 2, "infodisplay1", settingsScroll)
+	UtilityMenu.CreateSlider("Show fps:", 1, 2, "infodisplay2", settingsScroll)
 	UtilityMenu.CreateLabel("Map settings:", settingsScroll)
 	UtilityMenu.CreateSlider("Pos:", 1, 4, "mappos", settingsScroll)
 	UtilityMenu.CreateSlider("Scale:", 1, 5, "mapscale", settingsScroll)
 	UtilityMenu.CreateSlider("Size:", 1, 5, "mapsize", settingsScroll)
-	UtilityMenu.CreateSlider("Player status:", 1, 4, "playermarkercolor", settingsScroll)
-	UtilityMenu.CreateLabel("No shake:", settingsScroll)
+	UtilityMenu.CreateSlider("Show prop markers:", 1, 2, "markershow1", settingsScroll)
+	UtilityMenu.CreateSlider("Show npc markers:", 1, 2, "markershow2", settingsScroll)
+	UtilityMenu.CreateSlider("show player markers:", 1, 2, "markershow3", settingsScroll)
+	UtilityMenu.CreateSlider("Player team color:", 1, 2, "playermarkercolor1", settingsScroll)
+	UtilityMenu.CreateSlider("Player info status:", 1, 2, "playermarkercolor2", settingsScroll)
+	UtilityMenu.CreateLabel("No shake settings:", settingsScroll)
 	UtilityMenu.CreateSlider("FOV", 75, 120, "noshakefov", settingsScroll)
 	UtilityMenu.CreateLabel("NPC info settings:", settingsScroll)
-	UtilityMenu.CreateSlider("Info:", 1, 3, "npcinfodisplay", settingsScroll)
+	UtilityMenu.CreateSlider("Show name:", 1, 2, "npcinfodisplay1", settingsScroll)
+	UtilityMenu.CreateSlider("Show health:", 1, 2, "npcinfodisplay2", settingsScroll)
 	UtilityMenu.CreateLabel("Player info settings:", settingsScroll)
-	UtilityMenu.CreateSlider("Info:", 1, 13, "playerinfodisplay", settingsScroll)
+	UtilityMenu.CreateSlider("Status style:", 1, 2, "playerinfodisplay1", settingsScroll)
+	UtilityMenu.CreateSlider("Team color:", 1, 2, "playerinfodisplay2", settingsScroll)
+	UtilityMenu.CreateSlider("Show status:", 1, 2, "playerinfodisplay3", settingsScroll)
+	UtilityMenu.CreateSlider("Show nametag:", 1, 2, "playerinfodisplay4", settingsScroll)
+	UtilityMenu.CreateSlider("Show health:", 1, 2, "playerinfodisplay5", settingsScroll)
 	return frame
 end
 
