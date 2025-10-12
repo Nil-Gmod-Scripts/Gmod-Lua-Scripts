@@ -198,12 +198,13 @@ function UtilityMenu.SetupHooks()
 	hook.Add("PostDrawTranslucentRenderables", "UtilityMenu_DrawLinesAndBones", function()
 		local ply = LocalPlayer()
 		local startPos = ply:EyePos() + ply:GetAimVector() * 50
-		local lineFunctions, boneFunctions = {
+		local lineFunctions, highlightFunctions = {
 			npcline = {cache = UtilityMenu.State.EntityCache.NPCs, color = UtilityMenu.Config.EntityColors.NPC},
 			playerline = {cache = UtilityMenu.State.EntityCache.Players, color = UtilityMenu.Config.EntityColors.Player}
 		}, {
-			npcbones = {cache = UtilityMenu.State.EntityCache.NPCs, color = UtilityMenu.Config.EntityColors.NPC},
-			playerbones = {cache = UtilityMenu.State.EntityCache.Players, color = UtilityMenu.Config.EntityColors.Player}
+			prophighlight = {cache = UtilityMenu.State.EntityCache.Props, color = UtilityMenu.Config.EntityColors.Prop},
+			npchighlight = {cache = UtilityMenu.State.EntityCache.NPCs, color = UtilityMenu.Config.EntityColors.NPC},
+			playerhighlight = {cache = UtilityMenu.State.EntityCache.Players, color = UtilityMenu.Config.EntityColors.Player}
 		}
 		if ply:Alive() and not ply:ShouldDrawLocalPlayer() then
 			for setting, data in pairs(lineFunctions) do
@@ -215,12 +216,35 @@ function UtilityMenu.SetupHooks()
 				end
 			end
 		end
-		for setting, data in pairs(boneFunctions) do
+		for setting, data in pairs(highlightFunctions) do
+			local enabled = UtilityMenu.Settings[setting]
+			for _, ent in ipairs(data.cache) do
+				if not IsValid(ent) then continue end
+				if (ent:IsPlayer() or ent:IsNPC()) and (not ent:Alive() or ent:Health() <= 0) then continue end
+				if enabled then
+					ent:SetNoDraw(true)
+				else
+					ent:SetNoDraw(false)
+				end
+			end
+		end
+		for setting, data in pairs(highlightFunctions) do
 			if not UtilityMenu.Settings[setting] then continue end
 			for _, ent in ipairs(data.cache) do
-				if not IsValid(ent) or (not ent:Alive() or ent:Health() <= 0) then continue end
-				if setting == "playerbones" and ent == LocalPlayer() then continue end
-				UtilityMenu.DrawBones(ent, data.color)
+				if not IsValid(ent) or ((not ent:Alive() or ent:Health() <= 0) and not ent:GetClass():lower():find("prop_")) then continue end
+				if setting == "playerhighlight" and ent == LocalPlayer() then continue end
+				cam.IgnoreZ(true)
+				render.SuppressEngineLighting(true)
+				render.MaterialOverride(Material("models/debug/debugwhite"))
+				local color = data.color
+				render.SetColorModulation(color.r / 255, color.g / 255, color.b / 255)
+				render.SetBlend(200 / 255)
+				ent:DrawModel()
+				render.MaterialOverride(nil)
+				render.SuppressEngineLighting(false)
+				render.SetColorModulation(1, 1, 1)
+				render.SetBlend(1)
+				cam.IgnoreZ(false)
 			end
 		end
 	end)
@@ -454,7 +478,7 @@ end
 function UtilityMenu.CreateMenu()
 	local frame = vgui.Create("DFrame")
 	local tab = vgui.Create("DPropertySheet", frame)
-	frame:SetSize(300, 400)
+	frame:SetSize(300, 410)
 	frame:Center()
 	frame:SetTitle("Utility Menu V7")
 	frame:SetDeleteOnClose(false)
@@ -476,17 +500,19 @@ function UtilityMenu.CreateMenu()
 	UtilityMenu.CreateButtonGrid(UtilityMenu.Config.Gestures, function(gesture) RunConsoleCommand("act", gesture) end, utilityScroll)
 	UtilityMenu.CreateLabel("Miscellaneous options:", displayScroll)
 	UtilityMenu.CreateCheckbox("Draw client info", "clientinfo", displayScroll)
-	UtilityMenu.CreateCheckbox("Draw prop boxes", "propbox", displayScroll)
 	UtilityMenu.CreateCheckbox("Show minimap", "minimap", displayScroll)
 	UtilityMenu.CreateCheckbox("Toggle no shake", "noshake", displayScroll)
+	UtilityMenu.CreateLabel("Prop options:", displayScroll)
+	UtilityMenu.CreateCheckbox("Draw prop boxes", "propbox", displayScroll)
+	UtilityMenu.CreateCheckbox("Draw prop highlights", "prophighlight", displayScroll)
 	UtilityMenu.CreateLabel("NPC options:", displayScroll)
-	UtilityMenu.CreateCheckbox("Draw NPC bones", "npcbones", displayScroll)
 	UtilityMenu.CreateCheckbox("Draw NPC boxes", "npcbox", displayScroll)
+	UtilityMenu.CreateCheckbox("Draw NPC highlights", "npchighlight", displayScroll)
 	UtilityMenu.CreateCheckbox("Draw NPC info", "npcinfo", displayScroll)
 	UtilityMenu.CreateCheckbox("Draw NPC lines", "npcline", displayScroll)
 	UtilityMenu.CreateLabel("Player Options:", displayScroll)
-	UtilityMenu.CreateCheckbox("Draw player bones", "playerbones", displayScroll)
 	UtilityMenu.CreateCheckbox("Draw player boxes", "playerbox", displayScroll)
+	UtilityMenu.CreateCheckbox("Draw player highlights", "playerhighlight", displayScroll)
 	UtilityMenu.CreateCheckbox("Draw player info", "playerinfo", displayScroll)
 	UtilityMenu.CreateCheckbox("Draw player lines", "playerline", displayScroll)
 	UtilityMenu.CreateLabel("Freecam settings:", settingsScroll)
