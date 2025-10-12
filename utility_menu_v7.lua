@@ -278,8 +278,7 @@ function UtilityMenu.SetupHooks()
 					local healthRatio = math.Clamp(health / maxHealth, 0, 1)
 					healthColor = Color(255 - healthRatio * 255, healthRatio * 255, 0)
 				end
-				local npcInfoDisplay1 = cookie.GetNumber("npcinfodisplay1", 1)
-				local npcInfoDisplay2 = cookie.GetNumber("npcinfodisplay2", 1)
+				local npcInfoDisplay1, npcInfoDisplay2 = cookie.GetNumber("npcinfodisplay1", 1), cookie.GetNumber("npcinfodisplay2", 1)
 				local offset = npcInfoDisplay2 == 1 and 12 or 0
 				if npcInfoDisplay1 == 1 then
 					draw.SimpleText(npc:GetClass(), "BudgetLabel", pos.x, pos.y - offset, UtilityMenu.Config.EntityColors.NPC, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
@@ -299,7 +298,8 @@ function UtilityMenu.SetupHooks()
 				local statusText = ""
 				local statusColor
 				local playerinfodisplay1, playerinfodisplay2, playerinfodisplay3, playerinfodisplay4, playerinfodisplay5 = cookie.GetNumber("playerinfodisplay1", 1),
-					cookie.GetNumber("playerinfodisplay2", 1), cookie.GetNumber("playerinfodisplay3", 1), cookie.GetNumber("playerinfodisplay4", 1), cookie.GetNumber("playerinfodisplay5", 1)
+					cookie.GetNumber("playerinfodisplay2", 1), cookie.GetNumber("playerinfodisplay3", 1),cookie.GetNumber("playerinfodisplay4", 1),
+					cookie.GetNumber("playerinfodisplay5", 1)
 				if player:VoiceVolume() > 0.02 then
 					statusText = "*speaking*"
 					statusColor = UtilityMenu.Config.Colors.Yellow
@@ -355,7 +355,7 @@ function UtilityMenu.SetupHooks()
 				local x, y = UtilityMenu.MinimapProjection(ent:GetPos(), yaw, scale, radius)
 				local baseX, baseY = centerX + x, centerY + y
 				local heightDiff = ent:GetPos().z - EyePos().z
-				local heightOffset = heightDiff / (0.75 * scale)
+				local heightOffset = heightDiff / (1.5 * scale)
 				local markerY = baseY - heightOffset
 				if math.abs(heightOffset) > 1 then
 					surface.SetDrawColor(color.r, color.g, color.b)
