@@ -341,6 +341,7 @@ function UtilityMenu.SetupHooks()
 			local size, scale = UtilityMenu.Config.MapSizes[sizeIndex] or 150, UtilityMenu.Config.MapScales[scaleIndex] or 25
 			local showmarkerstatus, showheightoffset = cookie.GetNumber("showmarkerstatus", 1), cookie.GetNumber("showheightoffset", 1)
 			local markerstatusstyle, showminimapwalls = cookie.GetNumber("markerstatusstyle", 1), cookie.GetNumber("showminimapwalls", 1)
+			local wallquality = cookie.GetNumber("wallquality", 1)
 			local radius = size / 2
 			local markerstatusText, markerstatusColor = ""
 			local filterEntities = {ply}
@@ -361,12 +362,10 @@ function UtilityMenu.SetupHooks()
 			surface.SetDrawColor(0, 0, 0, 225)
 			surface.DrawRect(centerX - radius, centerY - radius, radius * 2, radius * 2)
 			local wallPoints = {}
-			local traceDistance = 5000
-			local pos = EyePos()
-			for i = 0, 359 do
-				local ang = math.rad(i)
+			for i = 0, wallquality - 1 do
+				local ang = math.rad((i / wallquality) * 360)
 				local dir = Vector(math.cos(ang), math.sin(ang), 0)
-				local tr = util.TraceLine({start = pos, endpos = pos + dir * traceDistance, mask = MASK_SOLID, filter = filterEntities})
+				local tr = util.TraceLine({start = EyePos(), endpos = EyePos() + dir * 5000, mask = MASK_SOLID, filter = filterEntities})
 				table.insert(wallPoints, tr.HitPos)
 			end
 			surface.SetDrawColor(255, 255, 255)
@@ -587,6 +586,7 @@ function UtilityMenu.CreateMenu()
 	UtilityMenu.CreateSlider("Size:", 1, 5, "mapsize", settingsScroll)
 	UtilityMenu.CreateSlider("show height offset:", 1, 2, "showheightoffset", settingsScroll)
 	UtilityMenu.CreateSlider("show walls:", 1, 2, "showminimapwalls", settingsScroll)
+	UtilityMenu.CreateSlider("Wall quality:", 10, 360, "wallquality", settingsScroll)
 	UtilityMenu.CreateSlider("Show prop markers:", 1, 2, "markershow1", settingsScroll)
 	UtilityMenu.CreateSlider("Show npc markers:", 1, 2, "markershow2", settingsScroll)
 	UtilityMenu.CreateSlider("show player markers:", 1, 2, "markershow3", settingsScroll)
