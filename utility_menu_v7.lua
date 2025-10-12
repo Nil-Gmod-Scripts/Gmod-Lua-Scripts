@@ -355,7 +355,7 @@ function UtilityMenu.SetupHooks()
 				local x, y = UtilityMenu.MinimapProjection(ent:GetPos(), yaw, scale, radius)
 				local baseX, baseY = centerX + x, centerY + y
 				local heightDiff = ent:GetPos().z - EyePos().z
-				local heightOffset = heightDiff / (0.5 * scale)
+				local heightOffset = heightDiff / (0.75 * scale)
 				local markerY = baseY - heightOffset
 				if math.abs(heightOffset) > 1 then
 					surface.SetDrawColor(color.r, color.g, color.b)
