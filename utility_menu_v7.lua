@@ -335,6 +335,7 @@ function UtilityMenu.SetupHooks()
 			end
 		end
 		if UtilityMenu.Settings.minimap then
+			local ply = LocalPlayer()
 			local sizeIndex, scaleIndex, posIndex = cookie.GetNumber("mapsize", 1), cookie.GetNumber("mapscale", 1), cookie.GetNumber("mappos", 1)
 			local markershow1, markershow2, markershow3 = cookie.GetNumber("markershow1", 1), cookie.GetNumber("markershow2", 1), cookie.GetNumber("markershow3", 1)
 			local size, scale = UtilityMenu.Config.MapSizes[sizeIndex] or 150, UtilityMenu.Config.MapScales[scaleIndex] or 25
@@ -342,22 +343,30 @@ function UtilityMenu.SetupHooks()
 			local markerstatusstyle, showminimapwalls = cookie.GetNumber("markerstatusstyle", 1), cookie.GetNumber("showminimapwalls", 1)
 			local radius = size / 2
 			local markerstatusText, markerstatusColor = ""
+			local filterEntities = {ply}
+			for _, prop in ipairs(UtilityMenu.State.EntityCache.Props) do
+				table.insert(filterEntities, prop)
+			end
+			for _, npc in ipairs(UtilityMenu.State.EntityCache.NPCs) do
+				table.insert(filterEntities, npc)
+			end
+			for _, player in ipairs(UtilityMenu.State.EntityCache.Players) do
+				table.insert(filterEntities, player)
+			end
 			local corners = {
 				{x = 16 + radius, y = 16 + radius}, {x = screenWidth - 16 - radius, y = 16 + radius},
 				{x = 16 + radius, y = screenHeight - 16 - radius}, {x = screenWidth - 16 - radius, y = screenHeight - 16 - radius}
 			}
 			local centerX, centerY, yaw = corners[posIndex].x, corners[posIndex].y, EyeAngles().y
-			local ply = LocalPlayer()
 			surface.SetDrawColor(0, 0, 0, 225)
 			surface.DrawRect(centerX - radius, centerY - radius, radius * 2, radius * 2)
 			local wallPoints = {}
 			local traceDistance = 5000
-			local rayCount = 100
 			local pos = EyePos()
-			for i = 0, rayCount do
-				local ang = math.rad(i * (360 / rayCount))
+			for i = 0, 359 do
+				local ang = math.rad(i)
 				local dir = Vector(math.cos(ang), math.sin(ang), 0)
-				local tr = util.TraceLine({start = pos, endpos = pos + dir * traceDistance, mask = MASK_SOLID, filter = ply})
+				local tr = util.TraceLine({start = pos, endpos = pos + dir * traceDistance, mask = MASK_SOLID, filter = filterEntities})
 				table.insert(wallPoints, tr.HitPos)
 			end
 			surface.SetDrawColor(255, 255, 255)
