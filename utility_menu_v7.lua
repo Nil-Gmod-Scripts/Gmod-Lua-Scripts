@@ -338,11 +338,10 @@ function UtilityMenu.SetupHooks()
 			local sizeIndex, scaleIndex, posIndex = cookie.GetNumber("mapsize", 1), cookie.GetNumber("mapscale", 1), cookie.GetNumber("mappos", 1)
 			local markershow1, markershow2, markershow3 = cookie.GetNumber("markershow1", 1), cookie.GetNumber("markershow2", 1), cookie.GetNumber("markershow3", 1)
 			local size, scale = UtilityMenu.Config.MapSizes[sizeIndex] or 150, UtilityMenu.Config.MapScales[scaleIndex] or 25
-			local markerstatusstyle = cookie.GetNumber("markerstatusstyle", 1)
-			local showmarkerstatus = cookie.GetNumber("showmarkerstatus", 1)
-			local showheightoffset = cookie.GetNumber("showheightoffset", 1)
-			local markerstatusText, markerstatusColor = ""
+			local showmarkerstatus, showheightoffset = cookie.GetNumber("showmarkerstatus", 1), cookie.GetNumber("showheightoffset", 1)
+			local markerstatusstyle, showminimapwalls = cookie.GetNumber("markerstatusstyle", 1), cookie.GetNumber("showminimapwalls", 1)
 			local radius = size / 2
+			local markerstatusText, markerstatusColor = ""
 			local corners = {
 				{x = 16 + radius, y = 16 + radius}, {x = screenWidth - 16 - radius, y = 16 + radius},
 				{x = 16 + radius, y = screenHeight - 16 - radius}, {x = screenWidth - 16 - radius, y = screenHeight - 16 - radius}
@@ -351,17 +350,31 @@ function UtilityMenu.SetupHooks()
 			local ply = LocalPlayer()
 			surface.SetDrawColor(0, 0, 0, 225)
 			surface.DrawRect(centerX - radius, centerY - radius, radius * 2, radius * 2)
+			local wallPoints = {}
+			local traceDistance = 5000
+			local rayCount = 100
+			local pos = EyePos()
+			for i = 0, rayCount do
+				local ang = math.rad(i * (360 / rayCount))
+				local dir = Vector(math.cos(ang), math.sin(ang), 0)
+				local tr = util.TraceLine({start = pos, endpos = pos + dir * traceDistance, mask = MASK_SOLID, filter = ply})
+				table.insert(wallPoints, tr.HitPos)
+			end
+			surface.SetDrawColor(255, 255, 255)
+			if showminimapwalls == 1 then
+				for i = 1, #wallPoints do
+					local p1 = wallPoints[i]
+					local p2 = wallPoints[i % #wallPoints + 1]
+					local sx1, sy1 = UtilityMenu.MinimapProjection(p1, yaw, scale, radius)
+					local sx2, sy2 = UtilityMenu.MinimapProjection(p2, yaw, scale, radius)
+					surface.DrawLine(centerX + sx1, centerY + sy1, centerX + sx2, centerY + sy2)
+				end
+			end
 			local function DrawHeightMarker(ent, color, label)
 				if not IsValid(ent) or ((not ent:Alive() or ent:Health() <= 0) and not ent:GetClass():find("prop_")) then return end
 				local x, y = UtilityMenu.MinimapProjection(ent:GetPos(), yaw, scale, radius)
 				local baseX, baseY = centerX + x, centerY + y
-				local heightDiff = ent:GetPos().z - EyePos().z
-				local heightOffset
-				if showheightoffset == 1 then
-					heightOffset = heightDiff / (1.5 * scale)
-				else
-					heightOffset = 0
-				end
+				local heightOffset = showheightoffset == 1 and (ent:GetPos().z - EyePos().z) / (1.5 * scale) or 0
 				local markerY = baseY - heightOffset
 				if math.abs(heightOffset) > 1 then
 					surface.SetDrawColor(color.r, color.g, color.b)
@@ -387,26 +400,21 @@ function UtilityMenu.SetupHooks()
 					draw.SimpleText(label, "BudgetLabel", baseX, markerY - 4, color, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 				end
 			end
-			for _, prop in ipairs(UtilityMenu.State.EntityCache.Props) do
-				if markershow1 == 1 then
+			if markershow1 == 1 then
+				for _, prop in ipairs(UtilityMenu.State.EntityCache.Props) do
 					DrawHeightMarker(prop, UtilityMenu.Config.EntityColors.Prop)
 				end
 			end
-			for _, npc in ipairs(UtilityMenu.State.EntityCache.NPCs) do
-				if markershow2 == 1 then
+			if markershow2 == 1 then
+				for _, npc in ipairs(UtilityMenu.State.EntityCache.NPCs) do
 					DrawHeightMarker(npc, UtilityMenu.Config.Colors.Red)
 				end
 			end
-			for _, player in ipairs(UtilityMenu.State.EntityCache.Players) do
-				if markershow3 == 1 then
+			if markershow3 == 1 then
+				for _, player in ipairs(UtilityMenu.State.EntityCache.Players) do
 					if not IsValid(player) or player == ply or not player:Alive() then continue end
 					local playermarkercolor1 = cookie.GetNumber("playermarkercolor1", 1)
-					local markerColor
-					if playermarkercolor1 == 1 then
-						markerColor = team.GetColor(player:Team())
-					else
-						markerColor = UtilityMenu.Config.EntityColors.Player
-					end
+					local markerColor = playermarkercolor1 == 1 and team.GetColor(player:Team()) or UtilityMenu.Config.EntityColors.Player
 					if markerstatusstyle == 2 and showmarkerstatus == 1 then
 						if player:VoiceVolume() > 0.02 then
 							markerColor = UtilityMenu.Config.Colors.Yellow
@@ -569,6 +577,7 @@ function UtilityMenu.CreateMenu()
 	UtilityMenu.CreateSlider("Scale:", 1, 5, "mapscale", settingsScroll)
 	UtilityMenu.CreateSlider("Size:", 1, 5, "mapsize", settingsScroll)
 	UtilityMenu.CreateSlider("show height offset:", 1, 2, "showheightoffset", settingsScroll)
+	UtilityMenu.CreateSlider("show walls:", 1, 2, "showminimapwalls", settingsScroll)
 	UtilityMenu.CreateSlider("Show prop markers:", 1, 2, "markershow1", settingsScroll)
 	UtilityMenu.CreateSlider("Show npc markers:", 1, 2, "markershow2", settingsScroll)
 	UtilityMenu.CreateSlider("show player markers:", 1, 2, "markershow3", settingsScroll)
