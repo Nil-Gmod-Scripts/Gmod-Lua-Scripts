@@ -338,6 +338,9 @@ function UtilityMenu.SetupHooks()
 			local sizeIndex, scaleIndex, posIndex = cookie.GetNumber("mapsize", 1), cookie.GetNumber("mapscale", 1), cookie.GetNumber("mappos", 1)
 			local markershow1, markershow2, markershow3 = cookie.GetNumber("markershow1", 1), cookie.GetNumber("markershow2", 1), cookie.GetNumber("markershow3", 1)
 			local size, scale = UtilityMenu.Config.MapSizes[sizeIndex] or 150, UtilityMenu.Config.MapScales[scaleIndex] or 25
+			local markerstatusstyle = cookie.GetNumber("markerstatusstyle", 1)
+			local showmarkerstatus = cookie.GetNumber("showmarkerstatus", 1)
+			local markerstatusText, markerstatusColor = ""
 			local radius = size / 2
 			local corners = {
 				{x = 16 + radius, y = 16 + radius}, {x = screenWidth - 16 - radius, y = 16 + radius},
@@ -360,7 +363,21 @@ function UtilityMenu.SetupHooks()
 				end
 				surface.SetDrawColor(color)
 				surface.DrawRect(baseX - 1, markerY - 1, 4, 4)
+				if markerstatusstyle == 1 and showmarkerstatus == 1 then
+					for _, player in ipairs(UtilityMenu.State.EntityCache.Players) do
+						if player:VoiceVolume() > 0.02 then
+							markerstatusText = "*speaking*"
+							markerstatusColor = UtilityMenu.Config.Colors.Yellow
+						elseif player:IsTyping() then
+							markerstatusText = "*typing*"
+							markerstatusColor = UtilityMenu.Config.Colors.Cyan
+						end
+					end
+				end
 				if label then
+					if markerstatusstyle == 1 then
+						draw.SimpleText(markerstatusText, "BudgetLabel", baseX, markerY - 4 - 12, markerstatusColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+					end
 					draw.SimpleText(label, "BudgetLabel", baseX, markerY - 4, color, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 				end
 			end
@@ -378,14 +395,13 @@ function UtilityMenu.SetupHooks()
 				if markershow3 == 1 then
 					if not IsValid(player) or player == ply or not player:Alive() then continue end
 					local playermarkercolor1 = cookie.GetNumber("playermarkercolor1", 1)
-					local playermarkercolor2 = cookie.GetNumber("playermarkercolor2", 1)
 					local markerColor
 					if playermarkercolor1 == 1 then
 						markerColor = team.GetColor(player:Team())
 					else
 						markerColor = UtilityMenu.Config.EntityColors.Player
 					end
-					if playermarkercolor2 == 1 then
+					if markerstatusstyle == 2 and showmarkerstatus == 1 then
 						if player:VoiceVolume() > 0.02 then
 							markerColor = UtilityMenu.Config.Colors.Yellow
 						elseif player:IsTyping() then
@@ -550,7 +566,8 @@ function UtilityMenu.CreateMenu()
 	UtilityMenu.CreateSlider("Show npc markers:", 1, 2, "markershow2", settingsScroll)
 	UtilityMenu.CreateSlider("show player markers:", 1, 2, "markershow3", settingsScroll)
 	UtilityMenu.CreateSlider("Player team color:", 1, 2, "playermarkercolor1", settingsScroll)
-	UtilityMenu.CreateSlider("Player info status:", 1, 2, "playermarkercolor2", settingsScroll)
+	UtilityMenu.CreateSlider("Status style:", 1, 2, "markerstatusstyle", settingsScroll)
+	UtilityMenu.CreateSlider("Show player status:", 1, 2, "showmarkerstatus", settingsScroll)
 	UtilityMenu.CreateLabel("No shake settings:", settingsScroll)
 	UtilityMenu.CreateSlider("FOV", 75, 120, "noshakefov", settingsScroll)
 	UtilityMenu.CreateLabel("NPC info settings:", settingsScroll)
@@ -590,15 +607,12 @@ concommand.Add("toggle_freecam", function()
 	end
 end)
 
-hook.Add("InitPostEntity", "UtilityMenu_AutoCreate", function()
-    if not UtilityMenu.Menu or not IsValid(UtilityMenu.Menu) then
-        UtilityMenu.Menu = UtilityMenu.CreateMenu()
-    end
-end)
-
 function UtilityMenu.Init()
 	if not UtilityMenu.State.ScriptRan then
 		UtilityMenu.State.ScriptRan = true
+		hook.Add("InitPostEntity", "UtilityMenu_Init", function()
+			UtilityMenu.Menu = UtilityMenu.CreateMenu()
+		end)
 		print("\nRun 'open_utility_menu' to open the menu!\n")
 	end
 end
