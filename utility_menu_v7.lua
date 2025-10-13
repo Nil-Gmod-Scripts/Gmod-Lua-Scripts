@@ -366,7 +366,7 @@ function UtilityMenu.SetupHooks()
 			for i = 0, wallquality - 1 do
 				local ang = math.rad((i / wallquality) * 360)
 				local dir = Vector(math.cos(ang), math.sin(ang), 0)
-				local tr = util.TraceLine({start = EyePos(), endpos = EyePos() + dir * 5000, mask = MASK_SOLID, filter = filterEntities})
+				local tr = util.TraceLine({start = EyePos(), endpos = EyePos() + dir * 10000, mask = MASK_SOLID, filter = filterEntities})
 				table.insert(wallPoints, tr.HitPos)
 			end
 			surface.SetDrawColor(255, 255, 255)
