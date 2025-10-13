@@ -31,11 +31,15 @@ UtilityMenu.Config = UtilityMenu.Config or {
 
 local function CleanupPreviousHooks()
 	for _, h in ipairs({
-		{"Think", "updatecache"}, {"CreateMove", "autobhopandfreecam"}, {"PlayerBindPress", "freecamblockkeys"}, {"PostDrawOpaqueRenderables", "drawentityboxes"},
-		{"PostDrawTranslucentRenderables", "drawlines"}, {"HUDPaint", "drawinfo"}, {"HUDPaint", "eyeangleupdater"}, {"CalcView", "fixedcamera"}, {"Think", "flashlightspam"}
+		{"HUDPaint", "UtilityMenu_EyeAngleUpdater"}, {"Think", "UtilityMenu_UpdateCache"}, {"CreateMove", "UtilityMenu_Freecam"}, {"CreateMove", "UtilityMenu_AutoBhop"},
+		{"Think", "UtilityMenu_FlashlightSpam"}, {"Think", "UtilityMenu_AttackSpam"}, {"Think", "UtilityMenu_PropKillSpawner"},
+		{"PostDrawOpaqueRenderables", "UtilityMenu_DrawEntityBoxes"}, {"PostDrawTranslucentRenderables", "UtilityMenu_DrawLinesAndBones"}, {"HUDPaint", "UtilityMenu_DrawHUD"},
+		{"CalcView", "UtilityMenu_FixedCamera"}, {"CalcView", "UtilityMenu_FreecamView"}, {"PlayerBindPress", "UtilityMenu_FreecamBlockKeys"},
+		{"PlayerBindPress", "UtilityMenu_PropKillBlockKeys"}
 	}) do
 		hook.Remove(h[1], h[2])
 	end
+
 	for _, cmd in ipairs({"open_utility_menu", "toggle_freecam"}) do
 		concommand.Remove(cmd)
 	end
