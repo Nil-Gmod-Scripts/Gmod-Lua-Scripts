@@ -363,14 +363,14 @@ function UtilityMenu.SetupHooks()
 			surface.SetDrawColor(0, 0, 0, 225)
 			surface.DrawRect(centerX - radius, centerY - radius, radius * 2, radius * 2)
 			local wallPoints = {}
-			for i = 0, wallquality - 1 do
-				local ang = math.rad((i / wallquality) * 360)
-				local dir = Vector(math.cos(ang), math.sin(ang), 0)
-				local tr = util.TraceLine({start = EyePos(), endpos = EyePos() + dir * 10000, mask = MASK_SOLID, filter = filterEntities})
-				table.insert(wallPoints, tr.HitPos)
-			end
-			surface.SetDrawColor(255, 255, 255)
 			if showminimapwalls == 1 then
+				for i = 0, wallquality - 1 do
+					local ang = math.rad((i / wallquality) * 360)
+					local dir = Vector(math.cos(ang), math.sin(ang), 0)
+					local tr = util.TraceLine({start = EyePos(), endpos = EyePos() + dir * (20 * size), mask = MASK_SOLID, filter = filterEntities})
+					table.insert(wallPoints, tr.HitPos)
+				end
+				surface.SetDrawColor(255, 255, 255)
 				for i = 1, #wallPoints do
 					local p1 = wallPoints[i]
 					local p2 = wallPoints[i % #wallPoints + 1]
