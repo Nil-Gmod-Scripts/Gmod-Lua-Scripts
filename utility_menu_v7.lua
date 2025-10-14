@@ -51,7 +51,8 @@ function UtilityMenu.UpdateEntityCache()
 	end
 	for _, ent in ipairs(ents.GetAll()) do
 		if not IsValid(ent) then continue end
-		if ent:GetClass():find("prop_") then
+		if (ent:GetClass():find("prop") or ent:GetClass():find("gmod")) and not (ent:GetClass():find("gmod_camera")
+			or ent:GetClass():find("gmod_tool") or ent:GetClass():find("gmod_hands")) then
 			table.insert(UtilityMenu.State.EntityCache.Props, ent)
 		elseif ent:IsNPC() or ent:IsNextBot() then
 			table.insert(UtilityMenu.State.EntityCache.NPCs, ent)
@@ -235,7 +236,8 @@ function UtilityMenu.SetupHooks()
 		for setting, data in pairs(highlightFunctions) do
 			if not UtilityMenu.Settings[setting] then continue end
 			for _, ent in ipairs(data.cache) do
-				if not IsValid(ent) or ((not ent:Alive() or ent:Health() <= 0) and not ent:GetClass():lower():find("prop_")) then continue end
+				if not IsValid(ent) or ((not ent:Alive() or ent:Health() <= 0) and not (ent:GetClass():find("prop") or ent:GetClass():find("gmod"))
+					and not (ent:GetClass():find("gmod_camera") or ent:GetClass():find("gmod_tool") or ent:GetClass():find("gmod_hands"))) then continue end
 				if setting == "playerhighlight" and ent == LocalPlayer() then continue end
 				cam.IgnoreZ(true)
 				render.SuppressEngineLighting(true)
@@ -270,6 +272,28 @@ function UtilityMenu.SetupHooks()
 				draw.SimpleText("FPS:" .. fps, "BudgetLabel", screenWidth / 2, screenHeight / 2 + offset, fpsColor, TEXT_ALIGN_CENTER)
 			end
 		end
+		if UtilityMenu.Settings.propinfo then
+			for _, prop in ipairs(UtilityMenu.State.EntityCache.Props) do
+				if not IsValid(prop) then continue end
+				local pos = prop:LocalToWorld(Vector(0, 0, prop:OBBMaxs().z)):ToScreen()
+				local maxHealth, health = prop:GetMaxHealth() or 100, prop:Health()
+				local healthColor
+				if maxHealth <= 0 then
+					healthColor = Color(0, 255, 0)
+				else
+					local healthRatio = math.Clamp(health / maxHealth, 0, 1)
+					healthColor = Color(255 - healthRatio * 255, healthRatio * 255, 0)
+				end
+				local propInfoDisplay1, propInfoDisplay2 = cookie.GetNumber("propInfoDisplay1", 1), cookie.GetNumber("propInfoDisplay2", 1)
+				local offset = propInfoDisplay2 == 1 and 12 or 0
+				if propInfoDisplay1 == 1 then
+					draw.SimpleText(prop:GetClass(), "BudgetLabel", pos.x, pos.y - offset, UtilityMenu.Config.Colors.White, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				end
+				if propInfoDisplay2 == 1 then
+					draw.SimpleText("HP:" .. health, "BudgetLabel", pos.x, pos.y, healthColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+				end
+			end
+		end
 		if UtilityMenu.Settings.npcinfo then
 			for _, npc in ipairs(UtilityMenu.State.EntityCache.NPCs) do
 				if not IsValid(npc) or (not npc:Alive() or npc:Health() <= 0) then continue end
@@ -285,7 +309,7 @@ function UtilityMenu.SetupHooks()
 				local npcInfoDisplay1, npcInfoDisplay2 = cookie.GetNumber("npcinfodisplay1", 1), cookie.GetNumber("npcinfodisplay2", 1)
 				local offset = npcInfoDisplay2 == 1 and 12 or 0
 				if npcInfoDisplay1 == 1 then
-					draw.SimpleText(npc:GetClass(), "BudgetLabel", pos.x, pos.y - offset, UtilityMenu.Config.EntityColors.NPC, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+					draw.SimpleText(npc:GetClass(), "BudgetLabel", pos.x, pos.y - offset, UtilityMenu.Config.Colors.White, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 				end
 				if npcInfoDisplay2 == 1 then
 					draw.SimpleText("HP:" .. health, "BudgetLabel", pos.x, pos.y, healthColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
@@ -384,7 +408,8 @@ function UtilityMenu.SetupHooks()
 				end
 			end
 			local function DrawHeightMarker(ent, color, label)
-				if not IsValid(ent) or ((not ent:Alive() or ent:Health() <= 0) and not ent:GetClass():find("prop_")) then return end
+				if not IsValid(ent) or ((not ent:Alive() or ent:Health() <= 0) and not (ent:GetClass():find("prop") or ent:GetClass():find("gmod"))
+					and not (ent:GetClass():find("gmod_camera") or ent:GetClass():find("gmod_tool") or ent:GetClass():find("gmod_hands"))) then return end
 				local x, y = UtilityMenu.MinimapProjection(ent:GetPos(), yaw, scale, radius)
 				local baseX, baseY = centerX + x, centerY + y
 				local heightOffset = showheightoffset == 1 and (ent:GetPos().z - EyePos().z) / (1.5 * scale) or 0
@@ -570,6 +595,7 @@ function UtilityMenu.CreateMenu()
 	UtilityMenu.CreateLabel("Prop options:", displayScroll)
 	UtilityMenu.CreateCheckbox("Draw prop boxes", "propbox", displayScroll)
 	UtilityMenu.CreateCheckbox("Draw prop highlights", "prophighlight", displayScroll)
+	UtilityMenu.CreateCheckbox("Draw prop info", "propinfo", displayScroll)
 	UtilityMenu.CreateLabel("NPC options:", displayScroll)
 	UtilityMenu.CreateCheckbox("Draw NPC boxes", "npcbox", displayScroll)
 	UtilityMenu.CreateCheckbox("Draw NPC highlights", "npchighlight", displayScroll)
@@ -600,6 +626,9 @@ function UtilityMenu.CreateMenu()
 	UtilityMenu.CreateSlider("Show player status:", 1, 2, "showmarkerstatus", settingsScroll)
 	UtilityMenu.CreateLabel("No shake settings:", settingsScroll)
 	UtilityMenu.CreateSlider("FOV", 75, 120, "noshakefov", settingsScroll)
+	UtilityMenu.CreateLabel("Prop info settings:", settingsScroll)
+	UtilityMenu.CreateSlider("Show name:", 1, 2, "propinfodisplay1", settingsScroll)
+	UtilityMenu.CreateSlider("Show health:", 1, 2, "propinfodisplay2", settingsScroll)
 	UtilityMenu.CreateLabel("NPC info settings:", settingsScroll)
 	UtilityMenu.CreateSlider("Show name:", 1, 2, "npcinfodisplay1", settingsScroll)
 	UtilityMenu.CreateSlider("Show health:", 1, 2, "npcinfodisplay2", settingsScroll)
@@ -638,11 +667,12 @@ concommand.Add("toggle_freecam", function()
 end)
 
 function UtilityMenu.Init()
+	hook.Add("InitPostEntity", "UtilityMenu_Init", function()
+		if IsValid(UtilityMenu.Menu) then return end
+		UtilityMenu.Menu = UtilityMenu.CreateMenu()
+	end)
 	if not UtilityMenu.State.ScriptRan then
 		UtilityMenu.State.ScriptRan = true
-		hook.Add("InitPostEntity", "UtilityMenu_Init", function()
-			UtilityMenu.Menu = UtilityMenu.CreateMenu()
-		end)
 		print("\nRun 'open_utility_menu' to open the menu!\n")
 	end
 end
