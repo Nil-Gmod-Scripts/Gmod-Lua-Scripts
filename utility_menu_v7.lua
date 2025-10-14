@@ -5,7 +5,8 @@ UtilityMenu.Settings = UtilityMenu.Settings or {}
 
 UtilityMenu.State = UtilityMenu.State or {
 	ScriptRan = false, FreecamEnabled = false, FreecamPosition = Vector(0, 0, 0), FreecamAngle = Angle(0, 0, 0), FrozenViewAngle = Angle(0, 0, 0), LastCacheUpdate = 0,
-	EntityCache = {Players = {}, NPCs = {}, Props = {}}, LastPropKeyState = {}, FreecamReleaseKeysState = false, LastAttackTime = 0
+	EntityCache = {Players = {}, NPCs = {}, Props = {}}, LastPropKeyState = {}, FreecamReleaseKeysState = false, LastAttackTime = 0, wallPointsLastUpdate = 0,
+	wallPoints = {}
 }
 
 UtilityMenu.Config = UtilityMenu.Config or {
@@ -29,22 +30,6 @@ UtilityMenu.Config = UtilityMenu.Config or {
 	FreecamReleaseKeys = {"-forward", "-back", "-moveleft", "-moveright", "-jump", "-duck", "-attack", "-attack2", "-reload"}
 }
 
-local function CleanupPreviousHooks()
-	for _, h in ipairs({
-		{"HUDPaint", "UtilityMenu_EyeAngleUpdater"}, {"Think", "UtilityMenu_UpdateCache"}, {"CreateMove", "UtilityMenu_Freecam"}, {"CreateMove", "UtilityMenu_AutoBhop"},
-		{"Think", "UtilityMenu_FlashlightSpam"}, {"Think", "UtilityMenu_AttackSpam"}, {"Think", "UtilityMenu_PropKillSpawner"},
-		{"PostDrawOpaqueRenderables", "UtilityMenu_DrawEntityBoxes"}, {"PostDrawTranslucentRenderables", "UtilityMenu_DrawLinesAndBones"}, {"HUDPaint", "UtilityMenu_DrawHUD"},
-		{"CalcView", "UtilityMenu_FixedCamera"}, {"CalcView", "UtilityMenu_FreecamView"}, {"PlayerBindPress", "UtilityMenu_FreecamBlockKeys"},
-		{"PlayerBindPress", "UtilityMenu_PropKillBlockKeys"}
-	}) do
-		hook.Remove(h[1], h[2])
-	end
-
-	for _, cmd in ipairs({"open_utility_menu", "toggle_freecam"}) do
-		concommand.Remove(cmd)
-	end
-end
-
 function UtilityMenu.UpdateEntityCache()
 	for _, cache in pairs(UtilityMenu.State.EntityCache) do
 		table.Empty(cache)
@@ -54,9 +39,9 @@ function UtilityMenu.UpdateEntityCache()
 		if (ent:GetClass():find("prop") or ent:GetClass():find("gmod")) and not (ent:GetClass():find("gmod_camera")
 			or ent:GetClass():find("gmod_tool") or ent:GetClass():find("gmod_hands")) then
 			table.insert(UtilityMenu.State.EntityCache.Props, ent)
-		elseif ent:IsNPC() or ent:IsNextBot() then
+		elseif (ent:IsNPC() or ent:IsNextBot()) and ent:Alive() then
 			table.insert(UtilityMenu.State.EntityCache.NPCs, ent)
-		elseif ent:IsPlayer() and ent ~= LocalPlayer() then
+		elseif ent:IsPlayer() and ent ~= LocalPlayer() and ent:Alive() then
 			table.insert(UtilityMenu.State.EntityCache.Players, ent)
 		end
 	end
@@ -67,24 +52,6 @@ function UtilityMenu.MinimapProjection(position, yaw, scale, radius)
 	local x, y = -(delta.x * math.cos(angle) - delta.y * math.sin(angle)), delta.x * math.sin(angle) + delta.y * math.cos(angle)
 	x, y = x / scale, y / scale
 	return math.Clamp(x, -radius, radius), math.Clamp(y, -radius, radius)
-end
-
-function UtilityMenu.DrawBones(entity, color)
-	if not entity.BoneParents then
-		entity.BoneParents = {}
-		for i = 0, entity:GetBoneCount() - 1 do
-			entity.BoneParents[i] = entity:GetBoneParent(i)
-		end
-	end
-	local origin = entity:GetPos()
-	for i = 0, entity:GetBoneCount() - 1 do
-		local parent = entity.BoneParents[i]
-		if not parent or parent == -1 then continue end
-		local bonePos1, bonePos2 = entity:GetBonePosition(i), entity:GetBonePosition(parent)
-		if bonePos1 and bonePos2 and bonePos1:DistToSqr(origin) > 1 and bonePos2:DistToSqr(origin) > 1 then
-			render.DrawLine(bonePos1, bonePos2, color, false)
-		end
-	end
 end
 
 function UtilityMenu.SetupHooks()
@@ -200,7 +167,7 @@ function UtilityMenu.SetupHooks()
 			end
 		end
 	end)
-	hook.Add("PostDrawTranslucentRenderables", "UtilityMenu_DrawLinesAndBones", function()
+	hook.Add("PostDrawTranslucentRenderables", "UtilityMenu_DrawLinesAndHighlights", function()
 		local ply = LocalPlayer()
 		local startPos = ply:EyePos() + ply:GetAimVector() * 50
 		local lineFunctions, highlightFunctions = {
@@ -226,10 +193,13 @@ function UtilityMenu.SetupHooks()
 			for _, ent in ipairs(data.cache) do
 				if not IsValid(ent) then continue end
 				if (ent:IsPlayer() or ent:IsNPC()) and (not ent:Alive() or ent:Health() <= 0) then continue end
+				ent:SetRenderMode(RENDERMODE_TRANSALPHA)
 				if enabled then
-					ent:SetNoDraw(true)
+					local col = ent:GetColor()
+					ent:SetColor(Color(col.r, col.g, col.b, 0))
 				else
-					ent:SetNoDraw(false)
+					local col = ent:GetColor()
+					ent:SetColor(Color(col.r, col.g, col.b, 255))
 				end
 			end
 		end
@@ -364,15 +334,14 @@ function UtilityMenu.SetupHooks()
 		end
 		if UtilityMenu.Settings.minimap then
 			local ply = LocalPlayer()
-			if not ply:Alive() then return end
+			-- if not ply:Alive() then return end
 			local sizeIndex, scaleIndex, posIndex = cookie.GetNumber("mapsize", 1), cookie.GetNumber("mapscale", 1), cookie.GetNumber("mappos", 1)
 			local markershow1, markershow2, markershow3 = cookie.GetNumber("markershow1", 1), cookie.GetNumber("markershow2", 1), cookie.GetNumber("markershow3", 1)
 			local size, scale = UtilityMenu.Config.MapSizes[sizeIndex] or 150, UtilityMenu.Config.MapScales[scaleIndex] or 25
 			local showmarkerstatus, showheightoffset = cookie.GetNumber("showmarkerstatus", 1), cookie.GetNumber("showheightoffset", 1)
 			local markerstatusstyle, showminimapwalls = cookie.GetNumber("markerstatusstyle", 1), cookie.GetNumber("showminimapwalls", 1)
-			local wallquality = cookie.GetNumber("wallquality", 1)
+			local wallquality, playermarkercolor1 = cookie.GetNumber("wallquality", 1), cookie.GetNumber("playermarkercolor1", 1)
 			local radius = size / 2
-			local markerstatusText, markerstatusColor = ""
 			local filterEntities = {ply}
 			for _, prop in ipairs(UtilityMenu.State.EntityCache.Props) do
 				table.insert(filterEntities, prop)
@@ -390,15 +359,19 @@ function UtilityMenu.SetupHooks()
 			local centerX, centerY, yaw = corners[posIndex].x, corners[posIndex].y, EyeAngles().y
 			surface.SetDrawColor(0, 0, 0, 225)
 			surface.DrawRect(centerX - radius, centerY - radius, radius * 2, radius * 2)
-			local wallPoints = {}
+			local wallPoints = UtilityMenu.State.wallPoints
 			if showminimapwalls == 1 then
-				for i = 0, wallquality - 1 do
-					local ang = math.rad((i / wallquality) * 360)
-					local dir = Vector(math.cos(ang), math.sin(ang), 0)
-					local tr = util.TraceLine({start = EyePos(), endpos = EyePos() + dir * (20 * size), mask = MASK_SOLID, filter = filterEntities})
-					table.insert(wallPoints, tr.HitPos)
+				if CurTime() - UtilityMenu.State.wallPointsLastUpdate > (1 / wallquality) * 10 then
+					table.Empty(wallPoints)
+					for i = 0, wallquality - 1 do
+						local ang = math.rad((i / wallquality) * 360)
+						local dir = Vector(math.cos(ang), math.sin(ang), 0)
+						local tr = util.TraceLine({start = EyePos(), endpos = EyePos() + dir * (20 * size), mask = MASK_SOLID, filter = filterEntities})
+						table.insert(wallPoints, tr.HitPos)
+					end
+					UtilityMenu.State.wallPointsLastUpdate = CurTime()
 				end
-				surface.SetDrawColor(255, 255, 255)
+				surface.SetDrawColor(100, 100, 100)
 				for i = 1, #wallPoints do
 					local p1 = wallPoints[i]
 					local p2 = wallPoints[i % #wallPoints + 1]
@@ -407,7 +380,8 @@ function UtilityMenu.SetupHooks()
 					surface.DrawLine(centerX + sx1, centerY + sy1, centerX + sx2, centerY + sy2)
 				end
 			end
-			local function DrawHeightMarker(ent, color, label)
+			local function DrawHeightMarker(ent, color, label, textOffset)
+				textOffset = textOffset or 0
 				if not IsValid(ent) or ((not ent:Alive() or ent:Health() <= 0) and not (ent:GetClass():find("prop") or ent:GetClass():find("gmod"))
 					and not (ent:GetClass():find("gmod_camera") or ent:GetClass():find("gmod_tool") or ent:GetClass():find("gmod_hands"))) then return end
 				local x, y = UtilityMenu.MinimapProjection(ent:GetPos(), yaw, scale, radius)
@@ -415,27 +389,13 @@ function UtilityMenu.SetupHooks()
 				local heightOffset = showheightoffset == 1 and (ent:GetPos().z - EyePos().z) / (1.5 * scale) or 0
 				local markerY = baseY - heightOffset
 				if math.abs(heightOffset) > 1 then
-					surface.SetDrawColor(color.r, color.g, color.b)
+					surface.SetDrawColor(color)
 					surface.DrawLine(baseX, baseY, baseX, markerY)
 				end
 				surface.SetDrawColor(color)
 				surface.DrawRect(baseX - 1, markerY - 1, 4, 4)
-				if markerstatusstyle == 1 and showmarkerstatus == 1 then
-					for _, player in ipairs(UtilityMenu.State.EntityCache.Players) do
-						if player:VoiceVolume() > 0.02 then
-							markerstatusText = "*speaking*"
-							markerstatusColor = UtilityMenu.Config.Colors.Yellow
-						elseif player:IsTyping() then
-							markerstatusText = "*typing*"
-							markerstatusColor = UtilityMenu.Config.Colors.Cyan
-						end
-					end
-				end
 				if label then
-					if markerstatusstyle == 1 then
-						draw.SimpleText(markerstatusText, "BudgetLabel", baseX, markerY - 4 - 12, markerstatusColor, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
-					end
-					draw.SimpleText(label, "BudgetLabel", baseX, markerY - 4, color, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
+					draw.SimpleText(label, "BudgetLabel", baseX, markerY - textOffset, color, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
 				end
 			end
 			if markershow1 == 1 then
@@ -450,15 +410,28 @@ function UtilityMenu.SetupHooks()
 			end
 			if markershow3 == 1 then
 				for _, player in ipairs(UtilityMenu.State.EntityCache.Players) do
-					if not IsValid(player) or player == ply or not player:Alive() then continue end
-					local playermarkercolor1 = cookie.GetNumber("playermarkercolor1", 1)
-					local markerColor = playermarkercolor1 == 1 and team.GetColor(player:Team()) or UtilityMenu.Config.EntityColors.Player
-					if markerstatusstyle == 2 and showmarkerstatus == 1 then
-						if player:VoiceVolume() > 0.02 then
-							markerColor = UtilityMenu.Config.Colors.Yellow
-						elseif player:IsTyping() then
-							markerColor = UtilityMenu.Config.Colors.Cyan
+					if not IsValid(player) then continue end
+					local markerstatusText = ""
+					local markerstatusColor = UtilityMenu.Config.Colors.White
+					local markerColor = UtilityMenu.Config.Colors.White
+					if player:VoiceVolume() > 0.02 then
+						markerstatusText = "*speaking*"
+						markerstatusColor = UtilityMenu.Config.Colors.Yellow
+					elseif player:IsTyping() then
+						markerstatusText = "*typing*"
+						markerstatusColor = UtilityMenu.Config.Colors.Cyan
+					elseif playermarkercolor1 == 1 then
+						markerstatusColor = team.GetColor(player:Team())
+					else
+						markerstatusColor = UtilityMenu.Config.Colors.White
+					end
+					if markerstatusstyle == 1 then
+						if playermarkercolor1 == 1 then
+							markerColor = team.GetColor(player:Team())
 						end
+						DrawHeightMarker(player, markerstatusColor, markerstatusText, 12)
+					elseif markerstatusstyle == 2 then
+						markerColor = markerstatusColor
 					end
 					DrawHeightMarker(player, markerColor, player:Nick())
 				end
@@ -641,11 +614,9 @@ function UtilityMenu.CreateMenu()
 	return frame
 end
 
-CleanupPreviousHooks()
-
 concommand.Add("open_utility_menu", function()
-	UtilityMenu.Menu:SetVisible(true)
-	UtilityMenu.Menu:MakePopup()
+    UtilityMenu.Menu:SetVisible(true)
+    UtilityMenu.Menu:MakePopup()
 end)
 
 concommand.Add("toggle_freecam", function()
@@ -667,15 +638,12 @@ concommand.Add("toggle_freecam", function()
 end)
 
 function UtilityMenu.Init()
-	hook.Add("InitPostEntity", "UtilityMenu_Init", function()
-		if IsValid(UtilityMenu.Menu) then return end
-		UtilityMenu.Menu = UtilityMenu.CreateMenu()
-	end)
-	if not UtilityMenu.State.ScriptRan then
-		UtilityMenu.State.ScriptRan = true
-		print("\nRun 'open_utility_menu' to open the menu!\n")
-	end
+	UtilityMenu.State.ScriptRan = true
+	UtilityMenu.SetupHooks()
+	UtilityMenu.Menu = UtilityMenu.CreateMenu()
+	print("\nRun 'open_utility_menu' to open the menu!\n")
 end
 
-UtilityMenu.Init()
-UtilityMenu.SetupHooks()
+if not UtilityMenu.State.ScriptRan then
+	UtilityMenu.Init()
+end
