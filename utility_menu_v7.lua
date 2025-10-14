@@ -155,14 +155,13 @@ function UtilityMenu.SetupHooks()
 	hook.Add("PostDrawOpaqueRenderables", "UtilityMenu_DrawEntityBoxes", function()
 		local drawFunctions = {
 			propbox = {cache = UtilityMenu.State.EntityCache.Props, color = UtilityMenu.Config.EntityColors.Prop, UseAngle = true},
-			npcbox = {cache = UtilityMenu.State.EntityCache.NPCs, color = UtilityMenu.Config.EntityColors.NPC, CheckAlive = true},
-			playerbox = {cache = UtilityMenu.State.EntityCache.Players, color = UtilityMenu.Config.EntityColors.Player, CheckAlive = true}
+			npcbox = {cache = UtilityMenu.State.EntityCache.NPCs, color = UtilityMenu.Config.EntityColors.NPC},
+			playerbox = {cache = UtilityMenu.State.EntityCache.Players, color = UtilityMenu.Config.EntityColors.Player}
 		}
 		for setting, data in pairs(drawFunctions) do
 			if not UtilityMenu.Settings[setting] then continue end
 			for _, ent in ipairs(data.cache) do
 				if not IsValid(ent) then continue end
-				if data.CheckAlive and (not ent:Alive() or ent:Health() <= 0) then continue end
 				render.DrawWireframeBox(ent:GetPos(), data.UseAngle and ent:GetAngles() or Angle(0, 0, 0), ent:OBBMins(), ent:OBBMaxs(), data.color, false)
 			end
 		end
@@ -182,7 +181,7 @@ function UtilityMenu.SetupHooks()
 			for setting, data in pairs(lineFunctions) do
 				if not UtilityMenu.Settings[setting] then continue end
 				for _, ent in ipairs(data.cache) do
-					if not IsValid(ent) or (not ent:Alive() or ent:Health() <= 0) then continue end
+					if not IsValid(ent) then continue end
 					local endPos = ent:GetPos() + Vector(0, 0, ent:OBBMaxs().z * 0.75)
 					render.DrawLine(startPos, endPos, data.color, false)
 				end
@@ -192,7 +191,7 @@ function UtilityMenu.SetupHooks()
 			local enabled = UtilityMenu.Settings[setting]
 			for _, ent in ipairs(data.cache) do
 				if not IsValid(ent) then continue end
-				if (ent:IsPlayer() or ent:IsNPC()) and (not ent:Alive() or ent:Health() <= 0) then continue end
+				if (ent:IsPlayer() or ent:IsNPC()) then continue end
 				ent:SetRenderMode(RENDERMODE_TRANSALPHA)
 				if enabled then
 					local col = ent:GetColor()
@@ -206,9 +205,7 @@ function UtilityMenu.SetupHooks()
 		for setting, data in pairs(highlightFunctions) do
 			if not UtilityMenu.Settings[setting] then continue end
 			for _, ent in ipairs(data.cache) do
-				if not IsValid(ent) or ((not ent:Alive() or ent:Health() <= 0) and not (ent:GetClass():find("prop") or ent:GetClass():find("gmod"))
-					and not (ent:GetClass():find("gmod_camera") or ent:GetClass():find("gmod_tool") or ent:GetClass():find("gmod_hands"))) then continue end
-				if setting == "playerhighlight" and ent == LocalPlayer() then continue end
+				if not IsValid(ent) then return end
 				cam.IgnoreZ(true)
 				render.SuppressEngineLighting(true)
 				render.MaterialOverride(Material("models/debug/debugwhite"))
@@ -266,7 +263,7 @@ function UtilityMenu.SetupHooks()
 		end
 		if UtilityMenu.Settings.npcinfo then
 			for _, npc in ipairs(UtilityMenu.State.EntityCache.NPCs) do
-				if not IsValid(npc) or (not npc:Alive() or npc:Health() <= 0) then continue end
+				if not IsValid(npc) then continue end
 				local pos = npc:LocalToWorld(Vector(0, 0, npc:OBBMaxs().z)):ToScreen()
 				local maxHealth, health = npc:GetMaxHealth() or 100, npc:Health()
 				local healthColor
@@ -288,16 +285,16 @@ function UtilityMenu.SetupHooks()
 		end
 		if UtilityMenu.Settings.playerinfo then
 			for _, player in ipairs(UtilityMenu.State.EntityCache.Players) do
-				if not IsValid(player) or not player:Alive() then continue end
+				if not IsValid(player) then continue end
 				local pos = player:LocalToWorld(Vector(0, 0, player:OBBMaxs().z)):ToScreen()
 				local maxHealth, health = player:GetMaxHealth() or 100, player:Health()
 				local healthRatio = health / maxHealth
 				local healthColor = Color(255 - healthRatio * 255, healthRatio * 255, 0)
 				local statusText = ""
 				local statusColor
-				local playerinfodisplay1, playerinfodisplay2, playerinfodisplay3, playerinfodisplay4, playerinfodisplay5 = cookie.GetNumber("playerinfodisplay1", 1),
-					cookie.GetNumber("playerinfodisplay2", 1), cookie.GetNumber("playerinfodisplay3", 1),cookie.GetNumber("playerinfodisplay4", 1),
-					cookie.GetNumber("playerinfodisplay5", 1)
+				local playerinfodisplay1, playerinfodisplay2, playerinfodisplay3, playerinfodisplay4, playerinfodisplay5 = 
+					cookie.GetNumber("playerinfodisplay1", 1), cookie.GetNumber("playerinfodisplay2", 1), cookie.GetNumber("playerinfodisplay3", 1), 
+					cookie.GetNumber("playerinfodisplay4", 1), cookie.GetNumber("playerinfodisplay5", 1)
 				if player:VoiceVolume() > 0.02 then
 					statusText = "*speaking*"
 					statusColor = UtilityMenu.Config.Colors.Yellow
@@ -334,7 +331,7 @@ function UtilityMenu.SetupHooks()
 		end
 		if UtilityMenu.Settings.minimap then
 			local ply = LocalPlayer()
-			-- if not ply:Alive() then return end
+			if not ply:Alive() then return end
 			local sizeIndex, scaleIndex, posIndex = cookie.GetNumber("mapsize", 1), cookie.GetNumber("mapscale", 1), cookie.GetNumber("mappos", 1)
 			local markershow1, markershow2, markershow3 = cookie.GetNumber("markershow1", 1), cookie.GetNumber("markershow2", 1), cookie.GetNumber("markershow3", 1)
 			local size, scale = UtilityMenu.Config.MapSizes[sizeIndex] or 150, UtilityMenu.Config.MapScales[scaleIndex] or 25
@@ -361,7 +358,7 @@ function UtilityMenu.SetupHooks()
 			surface.DrawRect(centerX - radius, centerY - radius, radius * 2, radius * 2)
 			local wallPoints = UtilityMenu.State.wallPoints
 			if showminimapwalls == 1 then
-				if CurTime() - UtilityMenu.State.wallPointsLastUpdate > (1 / wallquality) * 10 then
+				if CurTime() - UtilityMenu.State.wallPointsLastUpdate > (1 / wallquality) then
 					table.Empty(wallPoints)
 					for i = 0, wallquality - 1 do
 						local ang = math.rad((i / wallquality) * 360)
@@ -382,8 +379,7 @@ function UtilityMenu.SetupHooks()
 			end
 			local function DrawHeightMarker(ent, color, label, textOffset)
 				textOffset = textOffset or 0
-				if not IsValid(ent) or ((not ent:Alive() or ent:Health() <= 0) and not (ent:GetClass():find("prop") or ent:GetClass():find("gmod"))
-					and not (ent:GetClass():find("gmod_camera") or ent:GetClass():find("gmod_tool") or ent:GetClass():find("gmod_hands"))) then return end
+				if not IsValid(ent) then return end
 				local x, y = UtilityMenu.MinimapProjection(ent:GetPos(), yaw, scale, radius)
 				local baseX, baseY = centerX + x, centerY + y
 				local heightOffset = showheightoffset == 1 and (ent:GetPos().z - EyePos().z) / (1.5 * scale) or 0
@@ -477,7 +473,7 @@ function UtilityMenu.CreateLabel(text, parent)
 	label:SetTextColor(UtilityMenu.Config.Colors.White)
 	label:SizeToContents()
 	label:Dock(TOP)
-	label:DockMargin(5, 5, 0, 0)
+	label:DockMargin(10, 5, 0, 0)
 	return label
 end
 
@@ -491,7 +487,7 @@ function UtilityMenu.CreateCheckbox(text, key, parent)
 	checkbox:SetValue(UtilityMenu.Settings[key])
 	checkbox:Dock(TOP)
 	checkbox:SizeToContents()
-	checkbox:DockMargin(10, 5, 0, 0)
+	checkbox:DockMargin(15, 5, 0, 0)
 	checkbox.OnChange = function(self, value)
 		UtilityMenu.Settings[key] = value
 		cookie.Set(key, value and 1 or 0)
@@ -505,11 +501,11 @@ function UtilityMenu.CreateButtonGrid(items, onClick, parent)
 	grid:SetSpaceX(5)
 	grid:SetSpaceY(5)
 	grid:CenterHorizontal()
-	grid:DockMargin(9, 5, 0, 0)
+	grid:DockMargin(15, 5, 0, 0)
 	for _, item in ipairs(items) do
 		local button = grid:Add("DButton")
 		button:SetText(item:sub(1, 1):upper() .. item:sub(2):lower())
-		button:SetSize(60, 30)
+		button:SetSize(57.5, 30)
 		button.DoClick = function()
 			onClick(item)
 		end
@@ -523,7 +519,7 @@ function UtilityMenu.CreateSlider(label, min, max, key, parent)
 	slider.Label:SetFont("DermaDefault")
 	slider.Label:SetTextColor(UtilityMenu.Config.Colors.White)
 	slider:Dock(TOP)
-	slider:DockMargin(10, 5, -15, 0)
+	slider:DockMargin(15, 5, -18.3, 0)
 	slider:SetTall(15)
 	slider:SetMin(min)
 	slider:SetMax(max)
@@ -541,7 +537,7 @@ end
 function UtilityMenu.CreateMenu()
 	local frame = vgui.Create("DFrame")
 	local tab = vgui.Create("DPropertySheet", frame)
-	frame:SetSize(300, 375)
+	frame:SetSize(300, 400)
 	frame:Center()
 	frame:SetTitle("Utility Menu V7")
 	frame:SetDeleteOnClose(false)
