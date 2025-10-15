@@ -197,11 +197,13 @@ function UtilityMenu.SetupHooks()
 			if #data.cache == 0 then continue end
 			for _, ent in ipairs(data.cache) do
 				if not IsValid(ent) then continue end
-				local col = ent:GetColor()
-				ent:SetRenderMode(RENDERMODE_TRANSALPHA)
-				ent:SetColor(Color(col.r, col.g, col.b, enabled and 0 or 255))
+				if not ent._originalColor then
+					ent._originalColor = ent:GetColor()
+				end
 				if enabled then
 					local color = data.color
+					ent:SetRenderMode(RENDERMODE_TRANSALPHA)
+					ent:SetColor(Color(ent._originalColor.r, ent._originalColor.g, ent._originalColor.b, 0))
 					cam.IgnoreZ(true)
 					render.SuppressEngineLighting(true)
 					render.MaterialOverride(Material("models/debug/debugwhite"))
@@ -215,6 +217,7 @@ function UtilityMenu.SetupHooks()
 					cam.IgnoreZ(false)
 				else
 					ent:SetRenderMode(RENDERMODE_NORMAL)
+					ent:SetColor(ent._originalColor)
 				end
 			end
 		end
