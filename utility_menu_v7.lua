@@ -20,13 +20,13 @@ UtilityMenu.Config = UtilityMenu.Config or {
 	Gestures = {"agree", "becon", "bow", "cheer", "dance", "disagree", "forward", "group", "halt", "laugh", "muscle", "pers", "robot", "salute", "wave", "zombie"},
 	PropKillProps = {
 		[KEY_C] = "models/props_phx/construct/metal_plate4x4.mdl", [KEY_G] = "models/XQM/CoasterTrack/slope_225_3.mdl", [KEY_Q] = "models/props/cs_militia/refrigerator01.mdl",
-		[KEY_R] = "models/props_canal/canal_bars004.mdl", [KEY_V] = "models/props/de_tides/gate_large.mdl", [KEY_X] = "models/props_junk/sawblade001a.mdl"
+		[KEY_R] = "models/props_canal/canal_bars004.mdl", [KEY_V] = "models/props/de_tides/gate_large.mdl", [KEY_X] = "models/props_phx/wheels/moped_tire.mdl"
 	},
 	PkAllowedBinds = {
 		"+attack", "+attack2", "+back", "+duck", "+forward", "+jump", "+moveleft", "+moveright", "+showscores", "+speed", "+use", "+walk", "gmod_undo", "gm_showteam",
 		"impulse 100", "impulse 201", "kill", "messagemode", "open_utility_menu", "slot1", "slot2", "slot3", "slot4", "slot5", "slot6", "toggle_freecam"
 	},
-	FreecamAllowedBinds = {"+showscores", "kill", "messagemode", "open_utility_menu", "toggle_freecam"},
+	FreecamAllowedBinds = {"+showscores", "messagemode", "open_utility_menu", "toggle_freecam"},
 	FreecamReleaseKeys = {"-forward", "-back", "-moveleft", "-moveright", "-jump", "-duck", "-attack", "-attack2", "-reload"}
 }
 
@@ -41,7 +41,7 @@ function UtilityMenu.UpdateEntityCache()
 			table.insert(UtilityMenu.State.EntityCache.Props, ent)
 		elseif (ent:IsNPC() or ent:IsNextBot()) and ent:Alive() then
 			table.insert(UtilityMenu.State.EntityCache.NPCs, ent)
-		elseif ent:IsPlayer() and ent ~= LocalPlayer() and ent:Alive() then
+		elseif ent:IsPlayer() and ent ~= LocalPlayer() and ent:Alive() and not ent:GetNoDraw() then
 			table.insert(UtilityMenu.State.EntityCache.Players, ent)
 		end
 	end
@@ -59,7 +59,7 @@ function UtilityMenu.SetupHooks()
 		local _ = EyeAngles(), EyePos()
 	end)
 	hook.Add("Think", "UtilityMenu_UpdateCache", function()
-		if CurTime() - UtilityMenu.State.LastCacheUpdate > 0.1 then
+		if CurTime() - UtilityMenu.State.LastCacheUpdate > 0.05 then
 			UtilityMenu.UpdateEntityCache()
 			UtilityMenu.State.LastCacheUpdate = CurTime()
 		end
@@ -189,35 +189,33 @@ function UtilityMenu.SetupHooks()
 		end
 		for setting, data in pairs(highlightFunctions) do
 			local enabled = UtilityMenu.Settings[setting]
-			for _, ent in ipairs(data.cache) do
-				if not IsValid(ent) then continue end
-				if (ent:IsPlayer() or ent:IsNPC()) then continue end
-				ent:SetRenderMode(RENDERMODE_TRANSALPHA)
-				if enabled then
-					local col = ent:GetColor()
-					ent:SetColor(Color(col.r, col.g, col.b, 0))
-				else
-					local col = ent:GetColor()
-					ent:SetColor(Color(col.r, col.g, col.b, 255))
+			for i = #data.cache, 1, -1 do
+				if not IsValid(data.cache[i]) then
+					table.remove(data.cache, i)
 				end
 			end
-		end
-		for setting, data in pairs(highlightFunctions) do
-			if not UtilityMenu.Settings[setting] then continue end
+			if #data.cache == 0 then continue end
 			for _, ent in ipairs(data.cache) do
-				if not IsValid(ent) then return end
-				cam.IgnoreZ(true)
-				render.SuppressEngineLighting(true)
-				render.MaterialOverride(Material("models/debug/debugwhite"))
-				local color = data.color
-				render.SetColorModulation(color.r / 255, color.g / 255, color.b / 255)
-				render.SetBlend(200 / 255)
-				ent:DrawModel()
-				render.MaterialOverride(nil)
-				render.SuppressEngineLighting(false)
-				render.SetColorModulation(1, 1, 1)
-				render.SetBlend(1)
-				cam.IgnoreZ(false)
+				if not IsValid(ent) then continue end
+				local col = ent:GetColor()
+				ent:SetRenderMode(RENDERMODE_TRANSALPHA)
+				ent:SetColor(Color(col.r, col.g, col.b, enabled and 0 or 255))
+				if enabled then
+					local color = data.color
+					cam.IgnoreZ(true)
+					render.SuppressEngineLighting(true)
+					render.MaterialOverride(Material("models/debug/debugwhite"))
+					render.SetColorModulation(color.r / 255, color.g / 255, color.b / 255)
+					render.SetBlend(0.8)
+					ent:DrawModel()
+					render.MaterialOverride(nil)
+					render.SuppressEngineLighting(false)
+					render.SetColorModulation(1, 1, 1)
+					render.SetBlend(1)
+					cam.IgnoreZ(false)
+				else
+					ent:SetRenderMode(RENDERMODE_NORMAL)
+				end
 			end
 		end
 	end)
@@ -251,7 +249,7 @@ function UtilityMenu.SetupHooks()
 					local healthRatio = math.Clamp(health / maxHealth, 0, 1)
 					healthColor = Color(255 - healthRatio * 255, healthRatio * 255, 0)
 				end
-				local propInfoDisplay1, propInfoDisplay2 = cookie.GetNumber("propInfoDisplay1", 1), cookie.GetNumber("propInfoDisplay2", 1)
+				local propInfoDisplay1, propInfoDisplay2 = cookie.GetNumber("propinfodisplay1", 1), cookie.GetNumber("propinfodisplay2", 1)
 				local offset = propInfoDisplay2 == 1 and 12 or 0
 				if propInfoDisplay1 == 1 then
 					draw.SimpleText(prop:GetClass(), "BudgetLabel", pos.x, pos.y - offset, UtilityMenu.Config.Colors.White, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM)
@@ -358,7 +356,7 @@ function UtilityMenu.SetupHooks()
 			surface.DrawRect(centerX - radius, centerY - radius, radius * 2, radius * 2)
 			local wallPoints = UtilityMenu.State.wallPoints
 			if showminimapwalls == 1 then
-				if CurTime() - UtilityMenu.State.wallPointsLastUpdate > (1 / wallquality) then
+				if CurTime() - UtilityMenu.State.wallPointsLastUpdate > 0.05 then
 					table.Empty(wallPoints)
 					for i = 0, wallquality - 1 do
 						local ang = math.rad((i / wallquality) * 360)
@@ -559,7 +557,7 @@ function UtilityMenu.CreateMenu()
 	UtilityMenu.CreateButtonGrid(UtilityMenu.Config.Gestures, function(gesture) RunConsoleCommand("act", gesture) end, utilityScroll)
 	UtilityMenu.CreateLabel("Miscellaneous options:", displayScroll)
 	UtilityMenu.CreateCheckbox("Draw client info", "clientinfo", displayScroll)
-	UtilityMenu.CreateCheckbox("Show minimap", "minimap", displayScroll)
+	UtilityMenu.CreateCheckbox("Draw minimap", "minimap", displayScroll)
 	UtilityMenu.CreateCheckbox("Toggle no shake", "noshake", displayScroll)
 	UtilityMenu.CreateLabel("Prop options:", displayScroll)
 	UtilityMenu.CreateCheckbox("Draw prop boxes", "propbox", displayScroll)
