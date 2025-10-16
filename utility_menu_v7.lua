@@ -188,24 +188,17 @@ function UtilityMenu.SetupHooks()
 			end
 		end
 		for setting, data in pairs(highlightFunctions) do
-			local enabled = UtilityMenu.Settings[setting]
-			for i = #data.cache, 1, -1 do
-				if not IsValid(data.cache[i]) then
-					table.remove(data.cache, i)
-				end
-			end
-			if #data.cache == 0 then continue end
 			for _, ent in ipairs(data.cache) do
 				if not IsValid(ent) then continue end
-				local col = ent:GetColor()
-				ent:SetRenderMode(RENDERMODE_TRANSALPHA)
-				ent:SetColor(Color(col.r, col.g, col.b, enabled and 0 or 255))
-				if enabled then
-					local color = data.color
+				if UtilityMenu.Settings[setting] then
+					if not ent.OriginalColor then
+						ent.OriginalColor = ent:GetColor()
+					end
+					ent:SetColor(Color(ent.OriginalColor.r, ent.OriginalColor.g, ent.OriginalColor.b, 0))
 					cam.IgnoreZ(true)
 					render.SuppressEngineLighting(true)
 					render.MaterialOverride(Material("models/debug/debugwhite"))
-					render.SetColorModulation(color.r / 255, color.g / 255, color.b / 255)
+					render.SetColorModulation(data.color.r / 255, data.color.g / 255, data.color.b / 255) -- Don't forget to divide by 255!
 					render.SetBlend(0.8)
 					ent:DrawModel()
 					render.MaterialOverride(nil)
@@ -214,7 +207,10 @@ function UtilityMenu.SetupHooks()
 					render.SetBlend(1)
 					cam.IgnoreZ(false)
 				else
-					ent:SetRenderMode(RENDERMODE_NORMAL)
+					if ent.OriginalColor then
+						ent:SetColor(ent.OriginalColor)
+						ent.OriginalColor = nil
+					end
 				end
 			end
 		end
