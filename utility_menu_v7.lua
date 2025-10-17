@@ -36,8 +36,7 @@ function UtilityMenu.UpdateEntityCache()
 	end
 	for _, ent in ipairs(ents.GetAll()) do
 		if not IsValid(ent) then continue end
-		if (ent:GetClass():StartWith("prop_") or ent:GetClass():StartWith("gmod_")) and not (ent:GetClass():find("gmod_camera")
-			or ent:GetClass():find("gmod_tool") or ent:GetClass():find("gmod_hands")) then
+		if (ent:GetClass():StartWith("prop_") or ent:GetClass():StartWith("gmod_")) and not (ent:IsWeapon() or ent:GetClass():StartWith("gmod_hands")) then
 			table.insert(UtilityMenu.State.EntityCache.Props, ent)
 		elseif (ent:IsNPC() or ent:IsNextBot()) and ent:Alive() then
 			table.insert(UtilityMenu.State.EntityCache.NPCs, ent)
@@ -318,10 +317,10 @@ function UtilityMenu.SetupHooks()
 			if not ply:Alive() then return end
 			local sizeIndex, scaleIndex, posIndex = cookie.GetNumber("mapsize", 1), cookie.GetNumber("mapscale", 1), cookie.GetNumber("mappos", 1)
 			local markershow1, markershow2, markershow3 = cookie.GetNumber("markershow1", 1), cookie.GetNumber("markershow2", 1), cookie.GetNumber("markershow3", 1)
-			local size, scale = UtilityMenu.Config.MapSizes[sizeIndex] or 150, UtilityMenu.Config.MapScales[scaleIndex] or 25
+			local size, scale = UtilityMenu.Config.MapSizes[sizeIndex], UtilityMenu.Config.MapScales[scaleIndex]
 			local showmarkerstatus, showheightoffset = cookie.GetNumber("showmarkerstatus", 1), cookie.GetNumber("showheightoffset", 1)
 			local markerstatusstyle, showminimapwalls = cookie.GetNumber("markerstatusstyle", 1), cookie.GetNumber("showminimapwalls", 1)
-			local wallquality, playermarkercolor1 = cookie.GetNumber("wallquality", 1), cookie.GetNumber("playermarkercolor1", 1)
+			local wallquality, playermarkercolor1 = cookie.GetNumber("wallquality", 10), cookie.GetNumber("playermarkercolor1", 1)
 			local radius = size / 2
 			local filterEntities = {ply}
 			for _, prop in ipairs(UtilityMenu.State.EntityCache.Props) do
