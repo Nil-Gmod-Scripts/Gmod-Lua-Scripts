@@ -36,7 +36,7 @@ function UtilityMenu.UpdateEntityCache()
 	end
 	for _, ent in ipairs(ents.GetAll()) do
 		if not IsValid(ent) then continue end
-		if (ent:GetClass():find("prop") or ent:GetClass():find("gmod")) and not (ent:GetClass():find("gmod_camera")
+		if (ent:GetClass():StartWith("prop_") or ent:GetClass():StartWith("gmod_")) and not (ent:GetClass():find("gmod_camera")
 			or ent:GetClass():find("gmod_tool") or ent:GetClass():find("gmod_hands")) then
 			table.insert(UtilityMenu.State.EntityCache.Props, ent)
 		elseif (ent:IsNPC() or ent:IsNextBot()) and ent:Alive() then
@@ -238,13 +238,8 @@ function UtilityMenu.SetupHooks()
 				if not IsValid(prop) then continue end
 				local pos = prop:LocalToWorld(Vector(0, 0, prop:OBBMaxs().z)):ToScreen()
 				local maxHealth, health = prop:GetMaxHealth() or 100, prop:Health()
-				local healthColor
-				if maxHealth <= 0 then
-					healthColor = Color(0, 255, 0)
-				else
-					local healthRatio = math.Clamp(health / maxHealth, 0, 1)
-					healthColor = Color(255 - healthRatio * 255, healthRatio * 255, 0)
-				end
+				local healthRatio = math.Clamp(health / maxHealth, 0, 1)
+				local healthColor = Color(255 - healthRatio * 255, healthRatio * 255, 0)
 				local propInfoDisplay1, propInfoDisplay2 = cookie.GetNumber("propinfodisplay1", 1), cookie.GetNumber("propinfodisplay2", 1)
 				local offset = propInfoDisplay2 == 1 and 12 or 0
 				if propInfoDisplay1 == 1 then
@@ -260,13 +255,8 @@ function UtilityMenu.SetupHooks()
 				if not IsValid(npc) then continue end
 				local pos = npc:LocalToWorld(Vector(0, 0, npc:OBBMaxs().z)):ToScreen()
 				local maxHealth, health = npc:GetMaxHealth() or 100, npc:Health()
-				local healthColor
-				if maxHealth <= 0 then
-					healthColor = Color(0, 255, 0)
-				else
-					local healthRatio = math.Clamp(health / maxHealth, 0, 1)
-					healthColor = Color(255 - healthRatio * 255, healthRatio * 255, 0)
-				end
+				local healthRatio = math.Clamp(health / maxHealth, 0, 1)
+				local healthColor = Color(255 - healthRatio * 255, healthRatio * 255, 0)
 				local npcInfoDisplay1, npcInfoDisplay2 = cookie.GetNumber("npcinfodisplay1", 1), cookie.GetNumber("npcinfodisplay2", 1)
 				local offset = npcInfoDisplay2 == 1 and 12 or 0
 				if npcInfoDisplay1 == 1 then
@@ -352,7 +342,7 @@ function UtilityMenu.SetupHooks()
 			surface.DrawRect(centerX - radius, centerY - radius, radius * 2, radius * 2)
 			local wallPoints = UtilityMenu.State.wallPoints
 			if showminimapwalls == 1 then
-				if CurTime() - UtilityMenu.State.wallPointsLastUpdate > 0.05 then
+				if CurTime() - UtilityMenu.State.wallPointsLastUpdate > 0.15 then
 					table.Empty(wallPoints)
 					for i = 0, wallquality - 1 do
 						local ang = math.rad((i / wallquality) * 360)
@@ -402,7 +392,7 @@ function UtilityMenu.SetupHooks()
 				for _, player in ipairs(UtilityMenu.State.EntityCache.Players) do
 					if not IsValid(player) then continue end
 					local markerstatusText = ""
-					local markerstatusColor = UtilityMenu.Config.Colors.White
+					local markerstatusColor
 					local markerColor = UtilityMenu.Config.Colors.White
 					if player:VoiceVolume() > 0.02 then
 						markerstatusText = "*speaking*"
